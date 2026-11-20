@@ -1,0 +1,24 @@
+[workspace]
+resolver = "3"
+
+members = ["rnet-tapo", "rnet-tapo-py", "rnet-tapo-mcp"]
+# Exclude `rnet-tapo-py` from bare workspace-level commands (`cargo run --example ...`,
+# `cargo test`, etc.). It enables `pyo3/extension-module`, which leaves the Python
+# C API symbols undefined; feature unification would propagate that into `tapo`
+# and break linking of binaries and examples. Build it explicitly with `-p rnet-tapo-py`
+# or via maturin.
+default-members = ["rnet-tapo", "rnet-tapo-mcp"]
+
+[workspace.dependencies]
+anyhow = "1.0"
+base64 = "0.23"
+chrono = { version = "0.4.34", default-features = false }
+chrono-tz = { version = "0.10" }
+log = "0.4"
+pyo3 = { version = "0.30" }
+rand = "0.10"
+schemars = { version = "1.2" }
+serde = { version = "1.0" }
+serde_json = { version = "1.0" }
+thiserror = "2.0"
+tokio = { version = "1.52", default-features = false }

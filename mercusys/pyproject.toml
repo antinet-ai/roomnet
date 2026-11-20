@@ -1,0 +1,25 @@
+[project]
+name = "rnet-mercusys"
+version = "0.1.0"
+description = "roomnet client for Mercusys and TP-Link Tapo cameras on the local network"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "aiofiles",
+    "pycryptodome",
+    "python-kasa",
+    "requests",
+    "rtp",
+    "urllib3",
+]
+
+[dependency-groups]
+dev = ["mock", "pytest>=8.4", "pytest-asyncio"]
+
+[build-system]
+requires = ["uv_build>=0.11.6,<0.12"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::urllib3.exceptions.InsecureRequestWarning"]

@@ -1,0 +1,28 @@
+[project]
+name = "rnet-agent"
+version = "0.1.0"
+description = "The roomnet agent: reads a camera and a power plug and sends their data through the local anet service"
+requires-python = ">=3.11"
+dependencies = [
+    "anet",
+    "fastapi>=0.115,<1",
+    "rnet-tapo",
+    "uvicorn>=0.32,<1",
+]
+
+[tool.uv.sources]
+anet = { git = "https://github.com/antinet-ai/antinet", subdirectory = "sdk/python" }
+rnet-tapo = { path = "../../tapo/rnet-tapo-py" }
+
+[dependency-groups]
+dev = ["pytest>=8.4"]
+
+[project.scripts]
+rnet-agent = "rnet_agent.main:main"
+
+[build-system]
+requires = ["uv_build>=0.11.6,<0.12"]
+build-backend = "uv_build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

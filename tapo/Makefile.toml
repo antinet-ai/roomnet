@@ -1,0 +1,45 @@
+[config]
+skip_core_tasks = true
+default_to_workspace = false
+
+# Tasks run once at the workspace root. `--workspace`/`--all` flags include
+# `rnet-tapo-py` where safe; bare `cargo test` honors `default-members`, which
+# excludes `rnet-tapo-py` because linking test binaries and examples against
+# `pyo3/extension-module` fails (Python symbols are resolved at runtime).
+
+[tasks.format]
+command = "cargo"
+args = ["fmt", "--all", "--verbose", "--", "--check"]
+
+[tasks.check]
+command = "cargo"
+args = ["check", "--workspace", "--verbose"]
+
+[tasks.check-all-features]
+command = "cargo"
+args = ["check", "--workspace", "--all-features", "--verbose"]
+
+[tasks.check-doc]
+env = { "RUSTDOCFLAGS" = "-D warnings" }
+command = "cargo"
+args = ["doc", "--workspace", "--no-deps", "--all-features"]
+
+[tasks.clippy]
+command = "cargo"
+args = ["clippy", "--workspace", "--all-targets", "--all-features", "--verbose", "--", "-D", "warnings"]
+
+# `debug` gates code of `rnet-tapo` but no test, so one run with it on covers
+# every test, and the build without it is only checked.
+[tasks.test]
+dependencies = ["check-tests-default", "test-debug"]
+
+[tasks.check-tests-default]
+command = "cargo"
+args = ["check", "-p", "rnet-tapo", "--tests", "--verbose"]
+
+[tasks.test-debug]
+command = "cargo"
+args = ["test", "--features", "rnet-tapo/debug,rnet-tapo/bluetooth", "--verbose"]
+
+[tasks.ci-flow]
+dependencies = ["format", "check", "check-doc", "clippy", "test"]

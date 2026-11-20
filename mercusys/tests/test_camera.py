@@ -1,0 +1,1103 @@
+import os
+import pytest
+import json
+import time
+from rnet_mercusys import Tapo
+import mock
+
+user = os.environ.get("RNET_MERCUSYS_USER")
+password = os.environ.get("RNET_MERCUSYS_PASSWORD")
+invalidPassword = "{password}_invalid".format(password=password)
+host = os.environ.get("RNET_MERCUSYS_IP")
+
+"""
+util functions for unit tests
+"""
+
+
+def setOsd(tapo, values):
+    data = {
+        "origLabelEnabled": values["OSD"]["label_info"][0]["label_info_1"]["enabled"],
+        "origLabelX": values["OSD"]["label_info"][0]["label_info_1"]["x_coor"],
+        "origLabelY": values["OSD"]["label_info"][0]["label_info_1"]["y_coor"],
+        "origDateEnabled": values["OSD"]["date"]["enabled"],
+        "origDateX": values["OSD"]["date"]["x_coor"],
+        "origDateY": values["OSD"]["date"]["y_coor"],
+        "origWeekEnabled": values["OSD"]["week"]["enabled"],
+        "origWeekX": values["OSD"]["week"]["x_coor"],
+        "origWeekY": values["OSD"]["week"]["y_coor"],
+    }
+
+    if "text" in values["OSD"]["label_info"][0]["label_info_1"]:
+        data["origLabelText"] = values["OSD"]["label_info"][0]["label_info_1"]["text"]
+    else:
+        data["origLabelText"] = ""
+
+    tapo.setOsd(
+        data["origLabelText"],
+        data["origDateEnabled"] == "on",
+        data["origLabelEnabled"] == "on",
+        data["origWeekEnabled"] == "on",
+        int(data["origDateX"]),
+        int(data["origDateY"]),
+        int(data["origLabelX"]),
+        int(data["origLabelY"]),
+        int(data["origWeekX"]),
+        int(data["origWeekY"]),
+    )
+    return data
+
+
+def getPresetsMock(classObj):
+    raise Exception("Mock exception")
+
+
+"""
+unit tests below
+"""
+
+
+def test_refreshStok_success():
+    tapo = Tapo(host, user, password)
+    result = tapo.refreshStok()
+    assert isinstance(result, str)
+
+
+def test_refreshStok_failure():
+    with pytest.raises(Exception) as err:
+        tapo = Tapo(host, user, invalidPassword)
+        tapo.refreshStok()
+    assert "Invalid authentication data" in str(err.value)
+
+
+def test_getHostURL():
+    tapo = Tapo(host, user, password)
+    hostURL = tapo.getHostURL()
+    assert "https://{host}/stok=".format(host=host) in hostURL
+    assert "/ds" in hostURL
+
+
+def test_ensureAuthenticated():
+    tapo = Tapo(host, user, password)
+    result = tapo.ensureAuthenticated()
+    assert result is True
+
+
+def test_responseIsOK_success():
+    tapo = Tapo(host, user, password)
+
+    class AttributeDict(dict):
+        status_code = 200
+        text = '{"error_code":0}'
+
+        def json(self):
+            return json.loads(self.text)
+
+    result = tapo.responseIsOK(AttributeDict())
+    assert result is True
+
+
+def test_responseIsOK_failure():
+    tapo = Tapo(host, user, password)
+
+    class AttributeDict(dict):
+        status_code = 200
+        text = '{"error_code":404}'
+
+        def json(self):
+            return json.loads(self.text)
+
+    result = tapo.responseIsOK(AttributeDict())
+    assert result is False
+
+    class AttributeDict(dict):
+        status_code = 200
+        text = "not json"
+
+        def json(self):
+            return json.loads(self.text)
+
+    with pytest.raises(Exception) as err:
+        result = tapo.responseIsOK(AttributeDict())
+
+    assert "Unexpected response from Tapo Camera: " in str(err.value)
+
+    class AttributeDict(dict):
+        status_code = 404
+        text = "not json"
+
+        def json(self):
+            return json.loads(self.text)
+
+    with pytest.raises(Exception) as err:
+        tapo.responseIsOK(AttributeDict())
+
+    assert "Error communicating with Tapo Camera. Status code: 404" == str(err.value)
+
+
+def test_performRequest_failure():
+    tapo = Tapo(host, user, password)
+    with pytest.raises(Exception) as err:
+        tapo.performRequest({"invalidData": "test123"})
+    assert (
+        'Error: -40210 Response:{"result": {"responses": []}, "error_code": -40210}'
+        == str(err.value)
+    )
+
+
+def test_performRequest_invalidStok():
+    tapo = Tapo(host, user, password)
+    tapo.stok = "invalidStok"
+    result = tapo.getOsd()
+    assert "OSD" in result
+    assert result["error_code"] == 0
+
+
+def test_getOsd():
+    tapo = Tapo(host, user, password)
+    result = tapo.getOsd()
+    assert "OSD" in result
+    assert result["error_code"] == 0
+
+
+def test_setOsd_success():
+    tapo = Tapo(host, user, password)
+    originalOsd = tapo.getOsd()
+
+    tapo.setOsd(
+        "unit test",
+        False,
+        False,
+        False,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    )
+    result1 = tapo.getOsd()
+
+    tapo.setOsd(
+        "unit test 2",
+        True,
+        True,
+        True,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+    )
+    result2 = tapo.getOsd()
+
+    tapo.setOsd(
+        "",
+    )
+    result3 = tapo.getOsd()
+    origData = setOsd(tapo, originalOsd)
+
+    assert result1["OSD"]["label_info"][0]["label_info_1"]["text"] == "unit test"
+    assert result1["OSD"]["label_info"][0]["label_info_1"]["enabled"] == "off"
+    assert result1["OSD"]["label_info"][0]["label_info_1"]["x_coor"] == "3"
+    assert result1["OSD"]["label_info"][0]["label_info_1"]["y_coor"] == "4"
+    assert result1["OSD"]["date"]["enabled"] == "off"
+    assert result1["OSD"]["date"]["x_coor"] == "1"
+    assert result1["OSD"]["date"]["y_coor"] == "2"
+    assert result1["OSD"]["week"]["enabled"] == "off"
+    assert result1["OSD"]["week"]["x_coor"] == "5"
+    assert result1["OSD"]["week"]["y_coor"] == "6"
+
+    assert result2["OSD"]["label_info"][0]["label_info_1"]["text"] == "unit test 2"
+    assert result2["OSD"]["label_info"][0]["label_info_1"]["enabled"] == "on"
+    assert result2["OSD"]["label_info"][0]["label_info_1"]["x_coor"] == "9"
+    assert result2["OSD"]["label_info"][0]["label_info_1"]["y_coor"] == "10"
+    assert result2["OSD"]["date"]["enabled"] == "on"
+    assert result2["OSD"]["date"]["x_coor"] == "7"
+    assert result2["OSD"]["date"]["y_coor"] == "8"
+    assert result2["OSD"]["week"]["enabled"] == "on"
+    assert result2["OSD"]["week"]["x_coor"] == "11"
+    assert result2["OSD"]["week"]["y_coor"] == "12"
+
+    assert result3["OSD"]["label_info"][0]["label_info_1"]["text"] == "unit test 2"
+    assert result3["OSD"]["label_info"][0]["label_info_1"]["enabled"] == "off"
+
+    result = tapo.getOsd()
+
+    assert (
+        result["OSD"]["label_info"][0]["label_info_1"]["text"]
+        == origData["origLabelText"]
+    )
+    assert (
+        result["OSD"]["label_info"][0]["label_info_1"]["enabled"]
+        == origData["origLabelEnabled"]
+    )
+    assert (
+        result["OSD"]["label_info"][0]["label_info_1"]["x_coor"]
+        == origData["origLabelX"]
+    )
+    assert (
+        result["OSD"]["label_info"][0]["label_info_1"]["y_coor"]
+        == origData["origLabelY"]
+    )
+    assert result["OSD"]["date"]["enabled"] == origData["origDateEnabled"]
+    assert result["OSD"]["date"]["x_coor"] == origData["origDateX"]
+    assert result["OSD"]["date"]["y_coor"] == origData["origDateY"]
+    assert result["OSD"]["week"]["enabled"] == origData["origWeekEnabled"]
+    assert result["OSD"]["week"]["x_coor"] == origData["origWeekX"]
+    assert result["OSD"]["week"]["y_coor"] == origData["origWeekY"]
+
+
+def test_setOsd_failure():
+    tapo = Tapo(host, user, password)
+
+    originalOsd = tapo.getOsd()
+
+    with pytest.raises(Exception) as err1:
+        tapo.setOsd(
+            "AAAAAAAAAAAAAAAAA",
+            False,
+            False,
+            False,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+        )
+
+    with pytest.raises(Exception) as err2:
+        tapo.setOsd(
+            "valid label",
+            False,
+            False,
+            False,
+            -50,
+            2,
+            3,
+            4,
+            5,
+            6,
+        )
+
+    with pytest.raises(Exception) as err3:
+        tapo.setOsd(
+            "valid label",
+            False,
+            False,
+            False,
+            1,
+            10001,
+            3,
+            4,
+            5,
+            6,
+        )
+
+    # just in case something succeeded, restore original
+    setOsd(tapo, originalOsd)
+    assert "Error: Label cannot be longer than 16 characters" == str(err1.value)
+    assert "Error: Incorrect corrdinates, must be between 0 and 10000" == str(
+        err2.value
+    )
+    assert "Error: Incorrect corrdinates, must be between 0 and 10000" == str(
+        err3.value
+    )
+
+
+def test_getModuleSpec():
+    tapo = Tapo(host, user, password)
+    result = tapo.getModuleSpec()
+    assert "function" in result
+    assert "module_spec" in result["function"]
+    assert result["error_code"] == 0
+
+
+def test_getPrivacyMode():
+    tapo = Tapo(host, user, password)
+    result = tapo.getPrivacyMode()
+    assert result[".name"] == "lens_mask_info"
+    assert result[".type"] == "lens_mask_info"
+    assert "enabled" in result
+
+
+def test_getMotionDetection():
+    tapo = Tapo(host, user, password)
+    result = tapo.getMotionDetection()
+    assert result[".name"] == "motion_det"
+    assert result[".type"] == "on_off"
+    assert "enabled" in result
+    assert "enhanced" in result
+    assert "sensitivity" in result
+    assert "digital_sensitivity" in result
+
+
+def test_getPersonDetection():
+    tapo = Tapo(host, user, password)
+    result = tapo.getPersonDetection()
+    assert result[".name"] == "detection"
+    assert result[".type"] == "on_off"
+    assert "enabled" in result
+    assert "sensitivity" in result
+
+
+def test_getAlarm():
+    tapo = Tapo(host, user, password)
+    result = tapo.getAlarm()
+    assert result[".name"] == "chn1_msg_alarm_info"
+    assert result[".type"] == "info"
+    assert "enabled" in result
+    assert "alarm_type" in result
+    assert "alarm_mode" in result
+    assert "light_type" in result
+
+
+def test_getLED():
+    tapo = Tapo(host, user, password)
+    result = tapo.getLED()
+    assert result[".name"] == "config"
+    assert result[".type"] == "led"
+    assert "enabled" in result
+
+
+def test_getAutoTrackTarget():
+    tapo = Tapo(host, user, password)
+    result = tapo.getAutoTrackTarget()
+    assert result[".name"] == "target_track_info"
+    assert result[".type"] == "target_track_info"
+    assert "enabled" in result
+
+
+def test_getAudioSpec():
+    tapo = Tapo(host, user, password)
+    result = tapo.getAudioSpec()
+    assert "audio_capability" in result
+    assert "device_speaker" in result["audio_capability"]
+    assert "device_microphone" in result["audio_capability"]
+    assert result["error_code"] == 0
+
+
+def test_getVhttpd():
+    tapo = Tapo(host, user, password)
+    result = tapo.getVhttpd()
+    assert "cet" in result
+    assert "vhttpd" in result["cet"]
+    assert result["error_code"] == 0
+
+
+def test_getTime():
+    tapo = Tapo(host, user, password)
+    result = tapo.getTime()
+    assert "system" in result
+    assert "clock_status" in result["system"]
+    assert "seconds_from_1970" in result["system"]["clock_status"]
+    assert "local_time" in result["system"]["clock_status"]
+    assert result["error_code"] == 0
+
+
+def test_getMotorCapability():
+    tapo = Tapo(host, user, password)
+    result = tapo.getMotorCapability()
+    assert "motor" in result
+    assert "capability" in result["motor"]
+    assert result["error_code"] == 0
+
+
+def test_setPrivacyMode():
+    tapo = Tapo(host, user, password)
+    result = tapo.getPrivacyMode()
+    origEnabled = result["enabled"] == "on"
+    tapo.setPrivacyMode(False)
+    result = tapo.getPrivacyMode()
+    assert result["enabled"] == "off"
+    tapo.setPrivacyMode(True)
+    result = tapo.getPrivacyMode()
+    assert result["enabled"] == "on"
+    tapo.setPrivacyMode(False)
+    result = tapo.getPrivacyMode()
+    assert result["enabled"] == "off"
+    tapo.setPrivacyMode(origEnabled)
+
+
+def test_setAlarm():
+    tapo = Tapo(host, user, password)
+    origAlarm = tapo.getAlarm()
+    tapo.setAlarm(False)
+    result = tapo.getAlarm()
+    assert result["enabled"] == "off"
+    tapo.setAlarm(True)
+    result = tapo.getAlarm()
+    assert result["enabled"] == "on"
+
+    with pytest.raises(Exception) as err:
+        result = tapo.setAlarm(False, False, False)
+    assert "You need to use at least sound or light for alarm" in str(err.value)
+
+    tapo.setAlarm(False, True, False)
+    result = tapo.getAlarm()
+    assert result["enabled"] == "off"
+    assert "sound" in result["alarm_mode"]
+    assert "light" not in result["alarm_mode"]
+
+    tapo.setAlarm(True, False, True)
+    result = tapo.getAlarm()
+    assert result["enabled"] == "on"
+    assert "sound" not in result["alarm_mode"]
+    assert "light" in result["alarm_mode"]
+
+    tapo.setAlarm(
+        origAlarm["enabled"] == "on",
+        "sound" in origAlarm["alarm_mode"],
+        "light" in origAlarm["alarm_mode"],
+    )
+
+
+def test_moveMotor():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+    result = tapo.moveMotor(0, 0)
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+    assert result["error_code"] == 0
+
+
+def test_moveMotorStep():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+    result1 = tapo.moveMotorStep(10)
+    time.sleep(5)
+    result2 = tapo.moveMotorStep(190)
+    time.sleep(5)
+
+    with pytest.raises(Exception) as err:
+        tapo.moveMotorStep(360)
+    assert "Angle must be in a range 0 <= angle < 360" in str(err.value)
+    with pytest.raises(Exception) as err:
+        tapo.moveMotorStep(-1)
+    assert "Angle must be in a range 0 <= angle < 360" in str(err.value)
+
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+    assert result1["error_code"] == 0
+    assert result2["error_code"] == 0
+
+
+def test_moveMotorClockWise():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+    result = tapo.moveMotorClockWise()
+    time.sleep(5)
+
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+    assert result["error_code"] == 0
+
+
+def test_moveMotorCounterClockWise():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+    result = tapo.moveMotorCounterClockWise()
+    time.sleep(5)
+
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+    assert result["error_code"] == 0
+
+
+def test_moveMotorVertical():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+    result = tapo.moveMotorVertical()
+    time.sleep(5)
+
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+    assert result["error_code"] == 0
+
+
+def test_moveMotorHorizontal():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+    result = tapo.moveMotorHorizontal()
+    time.sleep(5)
+
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+    assert result["error_code"] == 0
+
+
+def test_setLEDEnabled():
+    tapo = Tapo(host, user, password)
+    origLedEnabled = tapo.getLED()["enabled"] == "on"
+    tapo.setLEDEnabled(True)
+    result = tapo.getLED()
+    assert result["enabled"] == "on"
+    tapo.setLEDEnabled(False)
+    result = tapo.getLED()
+    assert result["enabled"] == "off"
+    tapo.setLEDEnabled(True)
+    result = tapo.getLED()
+    assert result["enabled"] == "on"
+    tapo.setLEDEnabled(origLedEnabled)
+    result = tapo.getLED()
+    assert (result["enabled"] == "on") == origLedEnabled
+
+
+def test_getCommonImage():
+    tapo = Tapo(host, user, password)
+    result = tapo.getCommonImage()
+    assert result["error_code"] == 0
+    assert "image" in result
+    assert "common" in result["image"]
+
+
+def test_setDayNightMode():
+    tapo = Tapo(host, user, password)
+    origDayNightMode = tapo.getDayNightMode()
+    result = tapo.setDayNightMode("off")
+    assert result["error_code"] == 0
+    dayNightMode = tapo.getDayNightMode()
+    assert dayNightMode == "off"
+    result = tapo.setDayNightMode("on")
+    assert result["error_code"] == 0
+    dayNightMode = tapo.getDayNightMode()
+    assert dayNightMode == "on"
+    result = tapo.setDayNightMode("auto")
+    assert result["error_code"] == 0
+    dayNightMode = tapo.getDayNightMode()
+    assert dayNightMode == "auto"
+    result = tapo.setDayNightMode("off")
+    assert result["error_code"] == 0
+    dayNightMode = tapo.getDayNightMode()
+    assert dayNightMode == "off"
+    result = tapo.setDayNightMode(origDayNightMode)
+    assert result["error_code"] == 0
+    dayNightMode = tapo.getDayNightMode()
+    assert dayNightMode == origDayNightMode
+    with pytest.raises(Exception) as err:
+        tapo.setDayNightMode("unsupported")
+    assert "Day night mode must be one of ['off', 'on', 'auto']" in str(err.value)
+
+
+def test_setMotionDetection():
+    tapo = Tapo(host, user, password)
+    origMotionDetection = tapo.getMotionDetection()
+    origMotionDetectionSensitivity = origMotionDetection["sensitivity"]
+    if origMotionDetectionSensitivity == "medium":
+        origMotionDetectionSensitivity = "normal"
+
+    tapo.setMotionDetection(False)
+    result = tapo.getMotionDetection()
+    assert result["enabled"] == "off"
+    tapo.setMotionDetection(True)
+    result = tapo.getMotionDetection()
+    assert result["enabled"] == "on"
+    tapo.setMotionDetection(False)
+    result = tapo.getMotionDetection()
+    assert result["enabled"] == "off"
+    tapo.setMotionDetection(False, "low")
+    result = tapo.getMotionDetection()
+    assert result["sensitivity"] == "low"
+    tapo.setMotionDetection(False, "normal")
+    result = tapo.getMotionDetection()
+    assert result["sensitivity"] == "medium"
+    tapo.setMotionDetection(False, "high")
+    result = tapo.getMotionDetection()
+    assert result["sensitivity"] == "high"
+
+    with pytest.raises(Exception) as err:
+        tapo.setMotionDetection(False, "unsupported")
+    assert "Invalid sensitivity, can be low, normal or high" in str(err.value)
+
+    tapo.setMotionDetection(
+        origMotionDetection["enabled"] == "on", origMotionDetectionSensitivity
+    )
+    result = tapo.getMotionDetection()
+    assert result["enabled"] == origMotionDetection["enabled"]
+    assert result["sensitivity"] == origMotionDetection["sensitivity"]
+
+
+def test_setPersonDetection():
+    tapo = Tapo(host, user, password)
+    origPersonDetection = tapo.getPersonDetection()
+    origPersonDetectionSensitivity = origPersonDetection["sensitivity"]
+    if origPersonDetectionSensitivity == "medium":
+        origPersonDetectionSensitivity = "normal"
+
+    tapo.setPersonDetection(False)
+    result = tapo.getPersonDetection()
+    assert result["enabled"] == "off"
+    tapo.setPersonDetection(True)
+    result = tapo.getPersonDetection()
+    assert result["enabled"] == "on"
+    tapo.setPersonDetection(False)
+    result = tapo.getPersonDetection()
+    assert result["enabled"] == "off"
+    tapo.setPersonDetection(False, "low")
+    result = tapo.getPersonDetection()
+    assert result["sensitivity"] == "low"
+    tapo.setPersonDetection(False, "normal")
+    result = tapo.getPersonDetection()
+    assert result["sensitivity"] == "medium"
+    tapo.setPersonDetection(False, "high")
+    result = tapo.getPersonDetection()
+    assert result["sensitivity"] == "high"
+
+    with pytest.raises(Exception) as err:
+        tapo.setPersonDetection(False, "unsupported")
+    assert "Invalid sensitivity, can be low, normal or high" in str(err.value)
+
+    tapo.setPersonDetection(
+        origPersonDetection["enabled"] == "on", origPersonDetectionSensitivity
+    )
+    result = tapo.getPersonDetection()
+    assert result["enabled"] == origPersonDetection["enabled"]
+    assert result["sensitivity"] == origPersonDetection["sensitivity"]
+
+
+def test_setAutoTrackTarget():
+    tapo = Tapo(host, user, password)
+    origAutoTrackEnabled = tapo.getAutoTrackTarget()["enabled"] == "on"
+    tapo.setAutoTrackTarget(True)
+    result = tapo.getAutoTrackTarget()
+    assert result["enabled"] == "on"
+    tapo.setAutoTrackTarget(False)
+    result = tapo.getAutoTrackTarget()
+    assert result["enabled"] == "off"
+    tapo.setAutoTrackTarget(True)
+    result = tapo.getAutoTrackTarget()
+    assert result["enabled"] == "on"
+
+    tapo.setAutoTrackTarget(origAutoTrackEnabled)
+    result = tapo.getAutoTrackTarget()
+    assert (result["enabled"] == "on") == origAutoTrackEnabled
+
+
+def test_errorMessage():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if not origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+    with pytest.raises(Exception) as err:
+        tapo.savePreset("unit test")
+    assert "Privacy mode is ON, not able to execute" in str(err.value)
+    if not origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+
+
+def test_preset():
+    tapo = Tapo(host, user, password)
+    origPrivacyModeEnabled = tapo.getPrivacyMode()["enabled"] == "on"
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(False)
+    result = tapo.savePreset("unit test")
+    assert result is True
+
+    presets = tapo.getPresets()
+    idToSet = list(presets.keys())[list(presets.values()).index("unit test")]
+    result = tapo.setPreset(idToSet)
+    assert result["error_code"] == 0
+
+    with pytest.raises(Exception) as err:
+        tapo.setPreset(-2)
+    assert "Preset -2 is not set in the app" in str(err.value)
+
+    while True:
+        try:
+            presets = tapo.getPresets()
+            idToDelete = list(presets.keys())[list(presets.values()).index("unit test")]
+            result = tapo.deletePreset(idToDelete)
+            assert result is True
+        except Exception as e:
+            assert "'unit test' is not in list" in str(e)
+            break
+
+    with pytest.raises(Exception) as err:
+        tapo.deletePreset(-1)
+    assert "Preset -1 is not set in the app" in str(err.value)
+
+    if origPrivacyModeEnabled:
+        tapo.setPrivacyMode(True)
+
+
+def test_imageFlipVertical():
+    tapo = Tapo(host, user, password)
+    origImageFlipVertical = tapo.getImageFlipVertical()
+
+    tapo.setImageFlipVertical(True)
+    assert tapo.getImageFlipVertical()
+
+    tapo.setImageFlipVertical(False)
+    assert not tapo.getImageFlipVertical()
+
+    tapo.setImageFlipVertical(origImageFlipVertical)
+    assert tapo.getImageFlipVertical() == origImageFlipVertical
+
+
+def test_forceWhiteLampState():
+    tapo = Tapo(host, user, password)
+    origForceWhiteLampState = tapo.getForceWhitelampState()
+
+    tapo.setForceWhitelampState(True)
+    assert tapo.getForceWhitelampState()
+
+    tapo.setForceWhitelampState(False)
+    assert not tapo.getForceWhitelampState()
+
+    tapo.setForceWhitelampState(origForceWhiteLampState)
+    assert tapo.getForceWhitelampState() == origForceWhiteLampState
+
+
+def test_lensDistortionCorrection():
+    tapo = Tapo(host, user, password)
+    origLensDistortionCorrection = tapo.getLensDistortionCorrection()
+
+    tapo.setLensDistortionCorrection(True)
+    assert tapo.getLensDistortionCorrection()
+
+    tapo.setLensDistortionCorrection(False)
+    assert not tapo.getLensDistortionCorrection()
+
+    tapo.setLensDistortionCorrection(origLensDistortionCorrection)
+    assert tapo.getLensDistortionCorrection() == origLensDistortionCorrection
+
+
+def test_no_presets():
+    with mock.patch.object(Tapo, "getPresets", new=getPresetsMock):
+        tapo = Tapo(host, user, password)
+        tapo.refreshStok()
+
+    assert tapo.presets == {}
+
+
+def test_getStreamURL():
+    tapo = Tapo(host, user, password)
+    streamURL = tapo.getStreamURL()
+    assert streamURL == "{host}:8800".format(host=host)
+
+
+def test_getUserID():
+    tapo = Tapo(host, user, password)
+    userID = tapo.getUserID()
+    assert isinstance(userID, int)
+
+
+def test_getRecordings():
+    tapo = Tapo(host, user, password)
+    result = tapo.getRecordings("20200101")
+    assert isinstance(result, list)
+
+
+def test_lightFrequencyMode():
+    tapo = Tapo(host, user, password)
+    origLightFrequency = tapo.getLightFrequencyMode()
+
+    tapo.setLightFrequencyMode("50")
+    assert tapo.getLightFrequencyMode()
+
+    tapo.setLightFrequencyMode("60")
+    assert tapo.getLightFrequencyMode()
+
+    tapo.setLightFrequencyMode("auto")
+    assert tapo.getLightFrequencyMode()
+
+    with pytest.raises(Exception) as err:
+        tapo.setLightFrequencyMode("invalid")
+    assert "Light frequency mode must be one of" in str(err.value)
+
+    tapo.setLightFrequencyMode(origLightFrequency)
+    assert tapo.getLightFrequencyMode() == origLightFrequency
+
+
+def test_calibrateMotor():
+    tapo = Tapo(host, user, password)
+    result = tapo.calibrateMotor()
+    assert result["error_code"] == 0
+
+
+def test_startStopManualAlarm():
+    tapo = Tapo(host, user, password)
+    result = tapo.startManualAlarm()
+    assert result["error_code"] == 0
+    result = tapo.stopManualAlarm()
+    assert result["error_code"] == 0
+
+
+def test_music():
+    tapo = Tapo(host, user, password)
+    original = tapo.getMusicConfig()
+    assert original["play_state"] in ("Playing", "Pause")
+
+    music_list = tapo.getMusicList()["music_list"]
+    assert len(music_list) == original["songnum"]
+    assert "music" in tapo.getMusicCapability()
+
+    most = tapo.getMost()
+    assert most["getMusicConfig"][0]["play_state"] in ("Playing", "Pause")
+    assert most["getMusicList"][0]["music_list"] == music_list
+    assert "capability" in most["getMusicCapability"][0]["music"]
+
+    try:
+        tapo.setMusicState(True, original["songindex"])
+        time.sleep(2)
+        assert tapo.getMusicConfig()["play_state"] == "Playing"
+
+        tapo.setMusicConfig(volume=original["volume"])
+        assert tapo.getMusicConfig()["volume"] == original["volume"]
+
+        playMode = 1 if original["playmode"] == 0 else 0
+        tapo.setMusicConfig(playMode=playMode)
+        assert tapo.getMusicConfig()["playmode"] == playMode
+
+        tapo.setMusicConfig(timeoutPeriod=300)
+        assert tapo.getMusicConfig()["timeoutperiod"] == 300
+
+        tapo.setMusicState(False)
+        time.sleep(2)
+        assert tapo.getMusicConfig()["play_state"] == "Pause"
+    finally:
+        tapo.setMusicConfig(
+            volume=original["volume"],
+            playMode=original["playmode"],
+            timeoutPeriod=original["timeoutperiod"],
+        )
+        tapo.setMusicState(original["play_state"] == "Playing")
+
+    with pytest.raises(ValueError):
+        tapo.setMusicConfig()
+    with pytest.raises(ValueError):
+        tapo.setMusicConfig(volume=101)
+    with pytest.raises(ValueError):
+        tapo.setMusicState(True, -1)
+
+
+def test_reboot():
+    tapo = Tapo(host, user, password)
+    result = tapo.reboot()
+    assert result["error_code"] == 0
+
+
+def test_downloader_output_option():
+    from rnet_mercusys.media_stream.downloader import Downloader
+
+    class FakeTapo:
+        playerID = "x"
+
+        def getUserID(self):
+            return 1
+
+    d = Downloader(FakeTapo(), 1, 2, 0, output="ts")
+    assert d._saveMethod == "raw"
+    assert Downloader(FakeTapo(), 1, 2, 0)._saveMethod == "ffmpeg"
+    with pytest.raises(ValueError):
+        Downloader(FakeTapo(), 1, 2, 0, output="mkv")
+
+
+def test_convert_save_raw(tmp_path):
+    import asyncio
+    from rnet_mercusys.media_stream.convert import Convert
+
+    c = Convert()
+    c.write(b"\x47" * 376, b"")
+    asyncio.run(c.save(str(tmp_path / "clip.ts"), 1, "raw"))
+    assert (tmp_path / "clip.ts").read_bytes() == b"\x47" * 376
+def test_recording_snapshot_flow():
+    import asyncio
+    from rnet_mercusys.media_stream.snapshot import getRecordingSnapshot, getRecordingSnapshots
+
+    class Resp:
+        def __init__(self, mimetype, plaintext):
+            self.mimetype, self.plaintext = mimetype, plaintext
+
+    class FakeSession:
+        sent = []
+
+        def set_window_size(self, n):
+            self.window = n
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def transceive(self, payload, no_data_timeout=None):
+            req = json.loads(payload)
+            FakeSession.sent.append(req)
+            start = req["params"]["download"]["start_time"]
+            yield Resp("application/json", b'{"type":"response","seq":1,"params":{"error_code":0,"session_id":"7"}}')
+            if start == "1000":
+                yield Resp("image/jpeg", b"\xff\xd8jpeg-bytes\xff\xd9")
+                yield Resp("application/json", b'{"type":"notification","params":{"event_type":"stream_status","status":"finished"}}')
+            # any other start time: the camera stays silent, the stream just ends
+
+    class FakeTapo:
+        playerID = "abc"
+
+        class logger:
+            @staticmethod
+            def debugLog(m):
+                pass
+
+        def getUserID(self):
+            return 3
+
+        def getMediaSession(self, kind):
+            return FakeSession()
+
+    tapo = FakeTapo()
+    assert asyncio.run(getRecordingSnapshot(tapo, 1000)) == b"\xff\xd8jpeg-bytes\xff\xd9"
+    assert asyncio.run(getRecordingSnapshot(tapo, 2000)) is None
+    req = FakeSession.sent[0]["params"]
+    assert req["method"] == "get" and req["download"]["media_type"] == 2
+    assert req["download"]["start_time"] == "1000" and "end_time" not in req["download"]
+
+    async def collect():
+        return [im async for im in getRecordingSnapshots(tapo, [1000, 2000, 1000])]
+
+    assert asyncio.run(collect()) == [b"\xff\xd8jpeg-bytes\xff\xd9", None, b"\xff\xd8jpeg-bytes\xff\xd9"]
+
+def test_live_snapshot_flow():
+    import asyncio
+    from rnet_mercusys.media_stream.snapshot import getSnapshot
+
+    class Resp:
+        def __init__(self, mimetype, plaintext):
+            self.mimetype, self.plaintext = mimetype, plaintext
+
+    class FakeSession:
+        sent = []
+
+        def set_window_size(self, n):
+            self.window = n
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def transceive(self, payload, no_data_timeout=None):
+            req = json.loads(payload)
+            FakeSession.sent.append(req)
+            yield Resp("application/json", b'{"type":"response","seq":1,"params":{"error_code":0,"session_id":"7"}}')
+            if req["params"]["download"]["media_type"] == 3:
+                yield Resp("image/jpeg", b"\xff\xd8live\xff\xd9")
+                yield Resp("application/json", b'{"type":"notification","params":{"event_type":"stream_status","status":"finished"}}')
+
+    class FakeTapo:
+        playerID = "abc"
+
+        class logger:
+            @staticmethod
+            def debugLog(m):
+                pass
+
+        def getUserID(self):
+            return 3
+
+        def getMediaSession(self, kind):
+            return FakeSession()
+
+    assert asyncio.run(getSnapshot(FakeTapo())) == b"\xff\xd8live\xff\xd9"
+    req = FakeSession.sent[0]["params"]["download"]
+    assert req["media_type"] == 3 and req["start_time"].isdigit()
+
+
+def test_downloader_reports_busy_camera(tmp_path):
+    import asyncio
+    from rnet_mercusys.media_stream.downloader import Downloader
+
+    class Resp:
+        def __init__(self, mimetype, plaintext):
+            self.mimetype, self.plaintext = mimetype, plaintext
+            self.audioPayload, self.audioPayloadType = b"", None
+
+    class BusySession:
+        requests = []
+
+        def set_window_size(self, n):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def transceive(self, payload, no_data_timeout=None):
+            BusySession.requests.append(json.loads(payload))
+            yield Resp(
+                "application/json",
+                b'{"type":"response","seq":1,"params":{"error_code":-52405}}',
+            )
+
+    class FakeTapo:
+        playerID = "abc"
+
+        class logger:
+            @staticmethod
+            def debugLog(m):
+                pass
+
+        def getUserID(self):
+            return 1
+
+        def getAudioConfig(self):
+            return {"audio_config": {"microphone": {"sampling_rate": "8"}}}
+
+        def getMediaSession(self, kind):
+            return BusySession()
+
+    d = Downloader(FakeTapo(), 1000, 1066, 0, outputDirectory=str(tmp_path) + "/")
+
+    async def run():
+        return [s async for s in d.download()]
+
+    states = asyncio.run(run())
+    assert states[-1]["currentAction"] == "Camera busy"
+    assert states[-1]["errorCode"] == -52405
+    # a busy camera is not a reason to fall back to the playback request
+    assert d.method == "download"
+    assert [list(r["params"])[0] for r in BusySession.requests] == ["download"]
+
+
+def test_downloader_request_download_and_playback():
+    from rnet_mercusys.media_stream.downloader import Downloader
+
+    class FakeTapo:
+        playerID = "0123456789abcdef"
+
+        def getUserID(self):
+            return 7
+
+    d = Downloader(FakeTapo(), 1789688911, 1789688977, 0)
+    req = d._buildRequest()
+    assert req["type"] == "request"
+    assert req["params"]["method"] == "get"
+    assert req["params"]["download"] == {
+        "client_id": 7,
+        "channels": [0],
+        "media_type": 0,
+        "start_time": "1789688911",
+        "end_time": "1789688977",
+        "player_id": "0123456789abcdef",
+    }
+    d = Downloader(FakeTapo(), 1789688911, 1789688977, 0, method="playback")
+    assert d._buildRequest()["params"]["playback"]["scale"] == "1/1"
+    with pytest.raises(ValueError):
+        Downloader(FakeTapo(), 1, 2, 0, method="fast")

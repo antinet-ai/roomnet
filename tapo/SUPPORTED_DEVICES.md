@@ -1,0 +1,184 @@
+# Supported devices
+
+- [Lights, Light Strips, Plugs, Power Strips](#lights-light-strips-plugs-power-strips)
+- [Power Strip Child Devices](#power-strip-child-devices)
+- [Cameras](#cameras)
+- [Hubs](#hubs)
+- [Hub Child Devices](#hub-child-devices)
+- [Device Setup](#device-setup)
+
+## Lights, Light Strips, Plugs, Power Strips
+
+&check; - Rust only\
+&#x2705; - Rust and Python\
+(d) - Requires the `debug` feature flag (enabled by default in `rnet-tapo-py`)
+
+| Feature<br/><br/><br/>              | L510<br/>L520<br/>L610<br/> | L430C, L430P<br/>L530, L535<br/>L630<br/> | L900<br/><br/><br/> | L920<br/>L930<br/><br/> | P100, P105<br/>P125, P125M<br/>TP10<br/> | P110<br/>P110M<br/>P115<br/> | P300<br/>P306<br/><br/> | P304M<br/>P316M<br/><br/> |
+| ----------------------------------- | :-------------------------- | :---------------------------------------- | :------------------ | :---------------------- | :--------------------------------------- | :--------------------------- | :---------------------- | :------------------------ |
+| add_schedule_rule                   |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| address                             | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| clear_timer                         |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| device_reboot                       | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| device_reset                        | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| edit_schedule_rule                  |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| get_child_device_component_list (d) |                             |                                           |                     |                         |                                          |                              | &#x2705;                | &#x2705;                  |
+| get_child_device_list               |                             |                                           |                     |                         |                                          |                              | &#x2705;                | &#x2705;                  |
+| get_child_device_list_json (d)      |                             |                                           |                     |                         |                                          |                              | &#x2705;                | &#x2705;                  |
+| get_cloud_connection_state          | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| get_component_list (d)              | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| get_current_power                   |                             |                                           |                     |                         |                                          | &#x2705;                     |                         |                           |
+| get_device_info                     | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| get_device_info_json (d)            | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| get_device_usage                    | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     |                         |                           |
+| get_energy_data                     |                             |                                           |                     |                         |                                          | &#x2705;                     |                         |                           |
+| get_energy_meter_data               |                             |                                           |                     |                         |                                          | &#x2705;                     |                         |                           |
+| get_energy_usage                    |                             |                                           |                     |                         |                                          | &#x2705;                     |                         |                           |
+| get_firmware_update_state           | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| get_latest_firmware                 | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| get_max_schedule_rules              |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| get_power_data                      |                             |                                           |                     |                         |                                          | &#x2705;                     |                         |                           |
+| get_schedule_rules                  |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| get_timer                           |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| get_timezone                        |                             |                                           |                     |                         |                                          | &#x2705;                     |                         |                           |
+| off                                 | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     |                         |                           |
+| on                                  | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     |                         |                           |
+| refresh_session                     | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| remove_all_schedule_rules           |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| remove_schedule_rule                |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| set_brightness                      | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                |                                          |                              |                         |                           |
+| set_color                           |                             | &#x2705;                                  | &#x2705;            | &#x2705;                |                                          |                              |                         |                           |
+| set_color_temperature               |                             | &#x2705;                                  | &#x2705;            | &#x2705;                |                                          |                              |                         |                           |
+| set_hue_saturation                  |                             | &#x2705;                                  | &#x2705;            | &#x2705;                |                                          |                              |                         |                           |
+| set_lighting_effect                 |                             |                                           |                     | &#x2705;                |                                          |                              |                         |                           |
+| set_nickname                        | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+| set_segment_effect                  |                             |                                           |                     | &#x2705;                |                                          |                              |                         |                           |
+| set_timer                           |                             |                                           |                     |                         | &#x2705;                                 | &#x2705;                     |                         |                           |
+| set() API \*                        |                             | &#x2705;                                  | &#x2705;            | &#x2705;                |                                          |                              |                         |                           |
+| start_firmware_update               | &#x2705;                    | &#x2705;                                  | &#x2705;            | &#x2705;                | &#x2705;                                 | &#x2705;                     | &#x2705;                | &#x2705;                  |
+
+\* The `set()` API allows multiple properties to be set in a single request.
+
+## Power Strip Child Devices
+
+&check; - Rust only\
+&#x2705; - Rust and Python\
+(d) - Requires the `debug` feature flag (enabled by default in `rnet-tapo-py`)
+
+| Feature<br/><br/>        | P300<br/>P306<br/> | P304M<br/>P316M<br/> |
+| ------------------------ | :----------------- | :------------------- |
+| get_component_list (d)   | &#x2705;           | &#x2705;             |
+| get_current_power        |                    | &#x2705;             |
+| get_device_info \*       | &#x2705;           | &#x2705;             |
+| get_device_info_json (d) | &#x2705;           | &#x2705;             |
+| get_device_usage         |                    | &#x2705;             |
+| get_energy_data          |                    | &#x2705;             |
+| get_energy_meter_data    |                    | &#x2705;             |
+| get_energy_usage         |                    | &#x2705;             |
+| get_power_data           |                    | &#x2705;             |
+| get_timezone             |                    | &#x2705;             |
+| off                      | &#x2705;           | &#x2705;             |
+| on                       | &#x2705;           | &#x2705;             |
+
+\* Obtained by calling `get_child_device_list` on the power strip or `get_device_info` on a child device handler.
+
+## Cameras
+
+&check; - Rust only\
+&#x2705; - Rust and Python\
+(d) - Requires the `debug` feature flag (enabled by default in `rnet-tapo-py`)
+
+| Feature<br/><br/><br/>   | C120<br/><br/><br/> | C210<br/>C220<br/>C225<br/> | C325WB<br/>C520WS<br/><br/> | TC40<br/>TC70<br/><br/> |
+| ------------------------ | :------------------ | :-------------------------- | :-------------------------- | :---------------------- |
+| address                  | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| delete_preset            |                     | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| device_reboot            | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| device_reset             | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| get_component_list (d)   | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| get_detections           | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| get_device_info          | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| get_device_info_json (d) | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| get_presets              |                     | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| get_rtsp_stream_url      | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| get_snapshot             | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| goto_preset              |                     | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| pan_tilt                 |                     | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| refresh_session          | &#x2705;            | &#x2705;                    | &#x2705;                    | &#x2705;                |
+| save_preset              |                     | &#x2705;                    | &#x2705;                    | &#x2705;                |
+
+## Hubs
+
+&check; - Rust only\
+&#x2705; - Rust and Python\
+(d) - Requires the `debug` feature flag (enabled by default in `rnet-tapo-py`)
+
+| Feature<br/><br/>                   | H100<br/>H110 | H200<br/>H500 |
+| ----------------------------------- | :------------ | :------------ |
+| address                             | &#x2705;      | &#x2705;      |
+| device_reboot                       | &#x2705;      |               |
+| device_reset                        | &#x2705;      |               |
+| download_recording                  |               | &#x2705;      |
+| get_child_device_component_list (d) | &#x2705;      | &#x2705;      |
+| get_child_device_list               | &#x2705;      | &#x2705;      |
+| get_child_device_list_json (d)      | &#x2705;      | &#x2705;      |
+| get_cloud_connection_state          | &#x2705;      |               |
+| get_component_list (d)              | &#x2705;      | &#x2705;      |
+| get_device_info                     | &#x2705;      | &#x2705;      |
+| get_device_info_json (d)            | &#x2705;      | &#x2705;      |
+| get_general_device_list             |               | &#x2705;      |
+| get_general_device_list_json (d)    |               | &#x2705;      |
+| get_firmware_update_state           | &#x2705;      |               |
+| get_latest_firmware                 | &#x2705;      |               |
+| get_recording_dates                 |               | &#x2705;      |
+| get_recordings                      |               | &#x2705;      |
+| get_supported_ringtone_list (d)     | &#x2705;      |               |
+| get_timezone                        |               | &#x2705;      |
+| play_alarm                          | &#x2705;      |               |
+| refresh_session                     | &#x2705;      | &#x2705;      |
+| set_nickname                        | &#x2705;      |               |
+| start_firmware_update               | &#x2705;      |               |
+| stop_alarm                          | &#x2705;      |               |
+
+## Hub Child Devices
+
+&check; - Rust only\
+&#x2705; - Rust and Python\
+(d) - Requires the `debug` feature flag (enabled by default in `rnet-tapo-py`)
+
+| Feature<br/><br/>                | IR Remote<br/><br/> | KE100<br/><br/> | S200B<br/>S200D | S210<br/><br/> | T100<br/><br/> | T110<br/><br/> | T300<br/><br/> | T310<br/>T315 |
+| -------------------------------- | :------------------ | :-------------- | :-------------- | :------------- | :------------- | :------------- | :------------- | :------------ |
+| get_component_list (d)           | &#x2705;            | &#x2705;        | &#x2705;        | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;      |
+| get_device_info \*               | &#x2705;            | &#x2705;        | &#x2705;        | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;      |
+| get_device_info_json (d)         | &#x2705;            | &#x2705;        | &#x2705;        | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;      |
+| get_device_usage                 |                     |                 |                 | &#x2705;       |                |                |                |               |
+| get_firmware_update_state        |                     | &#x2705;        | &#x2705;        | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;      |
+| get_latest_firmware              |                     | &#x2705;        | &#x2705;        | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;      |
+| get_temperature_humidity_records |                     |                 |                 |                |                |                |                | &#x2705;      |
+| get_trigger_logs                 |                     |                 | &#x2705;        |                | &#x2705;       | &#x2705;       | &#x2705;       |               |
+| off                              |                     |                 |                 | &#x2705;       |                |                |                |               |
+| on                               |                     |                 |                 | &#x2705;       |                |                |                |               |
+| send_key_by_name                 | &#x2705;            |                 |                 |                |                |                |                |               |
+| set_child_protection             |                     | &#x2705;        |                 |                |                |                |                |               |
+| set_frost_protection             |                     | &#x2705;        |                 |                |                |                |                |               |
+| set_max_control_temperature      |                     | &#x2705;        |                 |                |                |                |                |               |
+| set_min_control_temperature      |                     | &#x2705;        |                 |                |                |                |                |               |
+| set_target_temperature           |                     | &#x2705;        |                 |                |                |                |                |               |
+| set_temperature_offset           |                     | &#x2705;        |                 |                |                |                |                |               |
+| start_firmware_update            |                     | &#x2705;        | &#x2705;        | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;       | &#x2705;      |
+
+\* Obtained by calling `get_child_device_list` on the hub (H100, H110, H200, H500) or `get_device_info` on a child device handler.
+
+## Device Setup
+
+&check; - Rust only\
+&#x2705; - Rust and Python\
+&#x1F7E1; - Not tested yet\
+&#x274C; - Not supported\
+(d) - Requires the `debug` feature flag (enabled by default in `rnet-tapo-py`)
+
+A new or factory-reset device that broadcasts a setup network, such as `Tapo_Plug_999F`, is set up with `ApiClient::setup_over_wifi` while the host is on that network. One that is set up over Bluetooth instead is found with `ApiClient::discover_bluetooth_setup_devices` and set up with `ApiClient::setup_over_bluetooth`, which require the `bluetooth` feature flag (enabled by default in `rnet-tapo-py`).
+
+`SetupHandler` provides `address`, `get_device_info`, `get_device_info_json` (d), `join_wifi` and `scan_wifi`.
+
+| Handler      | Lights   | Light Strips | Plugs    | Power Strips | Hubs      | Camera Hubs | Cameras  |
+| ------------ | :------- | :----------- | :------- | :----------- | :-------- | :---------- | :------- |
+| SetupHandler | &#x2705; | &#x2705;     | &#x2705; | &#x2705;     | &#x1F7E1; | &#x274C;    | &#x274C; |

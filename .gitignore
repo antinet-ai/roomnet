@@ -1,0 +1,11 @@
+target/
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.next/
+*.tsbuildinfo
+.DS_Store
+app/site/
+target/

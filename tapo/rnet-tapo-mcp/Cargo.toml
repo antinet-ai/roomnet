@@ -1,0 +1,33 @@
+[package]
+name = "rnet-tapo-mcp"
+version = "0.7.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+axum = "0.8"
+base64 = { workspace = true }
+chrono = { workspace = true, features = ["clock", "serde"] }
+config = "0.15"
+rmcp = { version = "3.9", features = ["server", "macros", "transport-streamable-http-server"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+subtle = "2.6"
+strum = { version = "0.28", features = ["derive"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "signal", "macros", "sync", "time"] }
+url = "2.5"
+
+opentelemetry = "0.33"
+opentelemetry_sdk = { version = "0.33", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.33"
+tracing = "0.1"
+tracing-opentelemetry = "0.34"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "std"] }
+
+rnet-tapo = { path = "../rnet-tapo", features = ["json-schema"] }
+
+[dev-dependencies]
+opentelemetry_sdk = { version = "0.33", features = ["testing"] }
+tower = { version = "0.5", features = ["util"] }

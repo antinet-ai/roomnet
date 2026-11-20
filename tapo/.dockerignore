@@ -1,0 +1,7 @@
+.claude/
+.git/
+.github/
+.vscode/
+rnet-tapo-py/.venv/
+rnet-tapo-py/python/
+target/

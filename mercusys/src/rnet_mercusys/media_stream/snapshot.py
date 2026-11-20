@@ -1,0 +1,103 @@
+import json
+import time
+from ..media_stream._utils import StreamType
+
+
+async def getRecordingSnapshot(tapo, startTime, timeout=8):
+    """Return the JPEG the camera keeps for the recording that starts at startTime.
+
+    The Tapo app shows one thumbnail per SD card recording. It comes from the media
+    port, with the same request the app uses to download a clip, but with
+    media_type 2 and only a start_time: the camera answers with a single
+    image/jpeg part (640x360 on a C510W) and then stream_status "finished".
+    A media session is bound to the media type of its first request, so this
+    opens a session of its own and closes it afterwards; several snapshots can be
+    fetched in a row with getRecordingSnapshots.
+
+    The camera only keeps such an image for recordings triggered by a detection
+    (video_type other than "1"); the Tapo app only asks for it on detection items.
+    For a timed (continuous) recording, or a start_time that does not match any
+    recording, the camera acknowledges the request and then stays silent, so that
+    case costs the full timeout. Filter on the recording's video_type first when
+    walking a getRecordings() result; a snapshot itself arrives within a second
+    or two.
+
+    Returns the JPEG bytes, or None if the camera has no image for that time.
+    """
+    async for image in getRecordingSnapshots(tapo, [startTime], timeout=timeout):
+        return image
+    return None
+
+
+async def getRecordingSnapshots(tapo, startTimes, timeout=8):
+    """Yield the JPEG (or None) for each start time, on one media session."""
+    async for image in _snapshots(tapo, [(2, t) for t in startTimes], timeout):
+        yield image
+
+
+async def getSnapshot(tapo, timeout=8):
+    """Return a JPEG of what the camera sees right now, or None.
+
+    Same media port request as the recording thumbnails, with media_type 3:
+    the camera answers with one image/jpeg part carrying the current OSD time
+    (640x360 on a C510W, about 0.2 s), no RTSP or ffmpeg involved. The
+    start_time field is part of the request shape but the camera ignores it
+    for this media type, so the current time is sent.
+    """
+    async for image in _snapshots(tapo, [(3, int(time.time()))], timeout):
+        return image
+    return None
+
+
+async def _snapshots(tapo, requests, timeout):
+    """Yield one image (or None) per (media_type, start_time) on one session."""
+    mediaSession = tapo.getMediaSession(StreamType.Download)
+    mediaSession.set_window_size(50)
+    async with mediaSession:
+        for seq, (mediaType, startTime) in enumerate(requests, start=1):
+            payload = json.dumps(
+                {
+                    "type": "request",
+                    "seq": seq,
+                    "params": {
+                        "download": {
+                            "client_id": tapo.getUserID(),
+                            "channels": [0],
+                            "media_type": mediaType,
+                            "start_time": str(startTime),
+                            "player_id": tapo.playerID,
+                        },
+                        "method": "get",
+                    },
+                }
+            )
+            image = None
+            stream = mediaSession.transceive(payload, no_data_timeout=timeout)
+            try:
+                async for resp in stream:
+                    if resp.mimetype == "image/jpeg":
+                        image = bytes(resp.plaintext)
+                    elif resp.mimetype == "application/json":
+                        try:
+                            data = json.loads(resp.plaintext.decode())
+                        except (ValueError, AttributeError):
+                            continue
+                        params = data.get("params") or {}
+                        if data.get("type") == "response" and params.get(
+                            "error_code", 0
+                        ) not in (0, None):
+                            tapo.logger.debugLog(
+                                f"Camera refused the snapshot request: {params.get('error_code')}"
+                            )
+                            break
+                        if (
+                            params.get("event_type") == "stream_status"
+                            and params.get("status") == "finished"
+                        ):
+                            break
+            finally:
+                try:
+                    await stream.aclose()
+                except (AttributeError, RuntimeError, StopAsyncIteration):
+                    pass
+            yield image

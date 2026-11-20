@@ -1,0 +1,158 @@
+# rnet_mercusys
+
+roomnet's Python client for Mercusys and TP-Link Tapo cameras on the local network.
+
+## Pre-Requirements
+
+- Python 3.11 or newer
+- uv
+
+## Install:
+
+```
+uv sync --locked
+```
+
+## Usage examples:
+
+### Initiate library:
+
+```
+from rnet_mercusys import Tapo
+
+user = "" # user you set in Advanced Settings -> Camera Account
+password = "" # password you set in Advanced Settings -> Camera Account
+host = "" # ip of the camera, example: 192.168.1.52
+
+tapo = Tapo(host, user, password)
+
+print(tapo.getBasicInfo())
+```
+
+## Authentication
+
+Depending on your camera model and firmware version, the authentication method varies.
+
+Normally you should be able to authenticate using the "camera account" created via the Tapo App (Settings > Advanced settings > Camera account).
+
+In case of a similar stack trace:
+
+```
+Traceback (most recent call last):
+  File "/home/user/Projects/rnet_mercusys/rnet_mercusys/__init__.py", line 41, in __init__
+    self.basicInfo = self.getBasicInfo()
+  File "/home/user/Projects/rnet_mercusys/rnet_mercusys/__init__.py", line 232, in getBasicInfo
+    return self.performRequest(
+  File "/home/user/Projects/rnet_mercusys/rnet_mercusys/__init__.py", line 95, in performRequest
+    self.ensureAuthenticated()
+  File "/home/user/Projects/rnet_mercusys/rnet_mercusys/__init__.py", line 61, in ensureAuthenticated
+    return self.refreshStok()
+  File "/home/user/Projects/rnet_mercusys/rnet_mercusys/__init__.py", line 80, in refreshStok
+    raise Exception("Invalid authentication data")
+Exception: Invalid authentication data
+```
+
+Attempt to authenticate using `admin` as `user` and your TP-Link cloud account password as `password`.
+
+Some newer firmware (for example Tapo C200 5.0 on 1.4.6) no longer accepts that login and answers with `-40211`. These cameras use a SPAKE2+ login instead, which rnet_mercusys detects and uses automatically. It needs your TP-Link cloud account password, passed either as `password` or as `cloudPassword`:
+
+```python
+tapo = Tapo(host, "admin", password, cloudPassword=cloud_password)
+```
+
+## Downloading Recordings
+
+Integration supports downloading recordings saved on camera's SD card.
+
+See [example script](experiments/DownloadRecordings.py).
+You need to call it with following ENV values:
+
+- `HOST`: IP Address of your camera
+- `PASSWORD_CLOUD`: Tapo cloud account password, it is required to access the recordings, everything is still local
+- `OUTPUT`: Directory where you wish to save all the recordings
+- `DATE`: Date for which to download recordings in format of YYYYMMDD, for example 20230221.
+
+You also need to have ffmpeg installed as that is used for converting the streams to watchable file.
+
+### Performance notes
+
+Recordings are downloaded through the camera's encrypted streaming protocol (`/stream`). The camera does not expose the raw MP4 files directly, so a true "file copy" is not possible; the stream is AES-decrypted and the resulting MPEG-TS data is remuxed into an MP4 container by ffmpeg (the video track is copied as-is, the audio track is re-encoded to AAC).
+
+Two stream requests exist for this. By default the `Downloader` sends the `download` request, the one the Tapo app sends when you tap download on a recording: the camera delivers the clip as fast as the link allows (about 10x realtime on Wi-Fi), with the full frame rate and the audio, and ends the stream itself at `end_time`. The older `playback` request plays the recording at realtime speed and keeps going past `end_time`, so a one minute clip takes a minute to download. If a camera does not accept the `download` request, the `Downloader` falls back to `playback` on its own.
+
+The camera also keeps a thumbnail for every recording on the SD card (the picture the Tapo app shows in its playback list). You can fetch it without downloading the clip:
+
+```python
+from rnet_mercusys.media_stream.snapshot import getRecordingSnapshot, getRecordingSnapshots
+
+jpeg = await getRecordingSnapshot(tapo, recording["startTime"])      # bytes, or None
+async for jpeg in getRecordingSnapshots(tapo, [r["startTime"] for r in recordings]):
+    ...                                                               # one media session for all
+```
+
+Only recordings triggered by a detection have one; for a timed (continuous) recording the camera stays silent until the timeout, so filter on `video_type` first.
+
+The same request also gives a picture of what the camera sees right now, without RTSP or ffmpeg:
+
+```python
+from rnet_mercusys.media_stream.snapshot import getSnapshot
+
+jpeg = await getSnapshot(tapo)      # bytes (640x360 on a C510W, about 0.2 s), or None
+```
+
+You can tune the download behavior with the following `Downloader` parameters:
+
+- `output`: `mp4` (default, remuxed with ffmpeg) or `ts` to keep the MPEG-TS exactly as the camera sends it, no ffmpeg involved for the file itself. VLC and most players read it directly, audio included.
+- `method`: `download` (default) or `playback`, see above.
+- `window_size`: Affects throughput and stability. Higher values usually download faster but can cause some cameras to stop responding. Common values are `50` (stable) or `200` (default).
+- `progressInterval`: Minimum time in seconds between progress updates (default `1.0`). Increasing this value reduces CPU overhead because the library no longer runs an `ffprobe` subprocess on every chunk just to report progress. Use `progressInterval=0` to restore the previous per-chunk behavior.
+- `stall_timeout`: Seconds to wait for data before treating the stream as stalled and retrying (default `120`).
+
+## Contributions:
+
+Contributions to rnet_mercusys are welcomed.
+
+By creating a PR you acknowledge and agree that you are not breaking any TOS, law and/or have a permission to provide and share the code changes.
+
+Owner of this repository is not legally responsible for any PRs or code changes to this project created by 3rd parties.
+
+When you make a new change to the code base, make sure to have 100% unit test coverage, see below for more information about tests.
+
+### Test instructions
+
+Set the following environment variables:
+
+`RNET_MERCUSYS_USER` - user you set in Advanced Settings -> Camera Account
+
+`RNET_MERCUSYS_PASSWORD` - password you set in Advanced Settings -> Camera Account
+
+`RNET_MERCUSYS_IP` - ip of the camera, example: 192.168.1.52
+
+Install `pre-commit` and `tox` from pip.
+
+Run `pre-commit install` and `pre-commit install -t pre-push`.
+
+Then run `tox` to run all the tests.
+
+Linters are ran on every commit.
+
+Tests are ran on push.
+
+Your camera may do all the actions supported by this library, including, but not limited to, move, change privacy mode and reboot while tests are running. Camera does not format SD card during tests.
+
+After the tests are done, your camera should be in the initial state.
+
+## Thank you
+
+- [Dale Pavey](https://research.nccgroup.com/2020/07/31/lights-camera-hacked-an-insight-into-the-world-of-popular-ip-cameras/) from NCC Group for the initial research on the Tapo C200
+- [likaci](https://github.com/likaci) and [his github repository](https://github.com/likaci/mercury-ipc-control) for the research on the Mercury camera on which tapo is based
+- [Tim Zhang](https://github.com/ttimasdf) for additional research for Mercury camera on [his github repository](https://github.com/ttimasdf/mercury-ipc-control)
+- [Gábor Szabados](https://github.com/GSzabados) for doing research and gathering all the information above in [Home Assistant Community forum](https://community.home-assistant.io/t/use-pan-tilt-function-for-tp-link-tapo-c200-from-home-assistant/170143/18)
+- [Davide Depau](https://github.com/Depau) for additional [research](https://md.depau.eu/s/r1Ys_oWoP) of the cameras and work on rnet_mercusys library
+- [Alex X](https://github.com/AlexxIT) for his incredible work on go2rtc library, and its code for Tapo stream communication which was rewritten to python in order to implement stream-related features of this library
+
+# Disclaimer
+
+Not affiliated with TP-Link, Tapo or Mercusys.
+
+All product names, trademarks and registered trademarks in this repository, are property of their respective owners.
