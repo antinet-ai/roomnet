@@ -27,7 +27,7 @@ logging.basicConfig(level=5)
 
 ## Handshake fails with 403 Forbidden (Third-Party Compatibility)
 
-Reported in [#441][issue_441], [#449][issue_449], [#473][issue_473] and [#643][issue_643] after plugs (P100, P110, P115) were upgraded to firmware 1.4.0 or newer.
+Seen after plugs (P100, P110, P115) were upgraded to firmware 1.4.0 or newer.
 
 ### Symptoms
 
@@ -50,7 +50,7 @@ Try these in order:
 
 ## Handshake fails with a hash mismatch (invalid credentials)
 
-Reported in [#320][issue_320] and [#373][issue_373] across plugs (P100, P110, P115) and bulbs (L530, L535). Often affects only some of the devices on an account while the others work with the same credentials.
+Seen across plugs (P100, P110, P115) and bulbs (L530, L535). Often affects only some of the devices on an account while the others work with the same credentials.
 
 ### Symptoms
 
@@ -80,7 +80,7 @@ Try these in order:
 
 ## Device does not respond on port 80 (local API offline)
 
-Reported in [#577][issue_577] where a P110 device has been upgraded to firmware 1.4.6. Might apply to other devices, firmware versions and scenarios.
+Seen where a P110 device has been upgraded to firmware 1.4.6. Might apply to other devices, firmware versions and scenarios.
 
 ### Symptoms
 
@@ -101,11 +101,4 @@ Try these in order:
    - Refresh the device list in the Tapo app.
 2. **Factory reset the device.** As a last resort, reset the device to factory settings, remove it from the Tapo app, and set it up again.
 
-[issue_320]: https://github.com/iBz-04/roomnet/issues/320
-[issue_373]: https://github.com/iBz-04/roomnet/issues/373
-[issue_441]: https://github.com/iBz-04/roomnet/issues/441
-[issue_449]: https://github.com/iBz-04/roomnet/issues/449
-[issue_473]: https://github.com/iBz-04/roomnet/issues/473
-[issue_577]: https://github.com/iBz-04/roomnet/issues/577
-[issue_643]: https://github.com/iBz-04/roomnet/issues/643
 [discover_example]: https://github.com/iBz-04/roomnet/tree/main/tapo/rnet-tapo/examples/tapo_discover_devices.rs
