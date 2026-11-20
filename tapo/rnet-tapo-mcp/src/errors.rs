@@ -1,7 +1,7 @@
 use rmcp::ErrorData as McpError;
 use rmcp::model::{ContentBlock, IntoContents};
-use strum::IntoStaticStr;
 use rnet_tapo::TapoResponseError;
+use strum::IntoStaticStr;
 use thiserror::Error;
 
 #[derive(Debug, Error, IntoStaticStr)]
@@ -120,7 +120,12 @@ fn control_progress(applied: usize, total: usize, in_flight: Option<&str>) -> St
     }
 }
 
-fn failed_progress(applied: usize, total: usize, failed: &str, source: &rnet_tapo::Error) -> String {
+fn failed_progress(
+    applied: usize,
+    total: usize,
+    failed: &str,
+    source: &rnet_tapo::Error,
+) -> String {
     let progress = applied_progress(applied, total);
     let position = applied + 1;
     if may_have_applied(source) {

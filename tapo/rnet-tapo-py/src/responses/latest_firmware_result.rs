@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 use pyo3::prelude::*;
-use serde::Serialize;
 use rnet_tapo::responses::LatestFirmwareResult;
+use serde::Serialize;
 
 /// The newest firmware that the device can update to.
 ///

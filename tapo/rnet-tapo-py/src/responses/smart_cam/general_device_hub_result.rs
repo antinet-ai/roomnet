@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
-use serde::Serialize;
 use rnet_tapo::responses::{AiCameraSupport, BackupWifi, GeneralDeviceHubResult};
+use serde::Serialize;
 
 /// General device (standalone Wi-Fi camera) paired to a camera hub.
 ///

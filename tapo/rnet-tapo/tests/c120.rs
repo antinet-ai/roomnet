@@ -7,8 +7,8 @@ mod simulator;
 use std::error::Error;
 
 use chrono::{Duration, Utc};
-use rstest::rstest;
 use rnet_tapo::{ApiClient, DeviceType, StreamExt};
+use rstest::rstest;
 
 use simulator::SimulatedDevice;
 use simulator::assertions::{assert_device_error, assert_unauthorized};

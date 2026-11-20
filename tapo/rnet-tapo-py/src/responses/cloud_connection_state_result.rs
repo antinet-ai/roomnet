@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
-use serde::Serialize;
 use rnet_tapo::responses::CloudConnectionStateResult;
+use serde::Serialize;
 
 // PyO3 cannot expose a Rust enum that mixes unit variants with data-carrying
 // ones, so this plain enum mirrors `CloudConnectionStateResult`; the `Unknown`

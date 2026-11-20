@@ -8,9 +8,9 @@ mod simulator;
 use std::error::Error;
 
 use chrono::{Duration, NaiveDate, TimeZone, Utc};
-use rstest::rstest;
 use rnet_tapo::requests::{EnergyDataInterval, PowerDataInterval};
 use rnet_tapo::{ApiClient, DeviceType, StreamExt};
+use rstest::rstest;
 
 use simulator::SimulatedDevice;
 

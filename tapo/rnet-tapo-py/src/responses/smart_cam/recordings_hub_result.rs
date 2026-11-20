@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use pyo3::prelude::*;
-use serde::Serialize;
 use rnet_tapo::responses::{RecordingHubResult, RecordingType};
+use serde::Serialize;
 
 /// Recording stored on a camera hub for a camera paired to it.
 ///

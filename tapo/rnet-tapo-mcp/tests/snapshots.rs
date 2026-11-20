@@ -66,10 +66,11 @@ async fn mcp_endpoint_still_requires_bearer_token() {
         .header("Accept", "application/json, text/event-stream")
         .body(Body::from(MCP_INITIALIZE))
         .unwrap();
-    let response = rnet_tapo_mcp::router(config.into(), Default::default(), Default::default(), store)
-        .oneshot(request)
-        .await
-        .unwrap();
+    let response =
+        rnet_tapo_mcp::router(config.into(), Default::default(), Default::default(), store)
+            .oneshot(request)
+            .await
+            .unwrap();
     assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
 

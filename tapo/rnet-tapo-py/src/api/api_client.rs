@@ -51,8 +51,12 @@ impl PyApiClient {
         target: String,
         timeout_s: u64,
     ) -> Result<PyDeviceDiscovery, Error> {
-        let discovery: DeviceDiscovery =
-            call_handler_constructor!(self, rnet_tapo::ApiClient::discover_devices, target, timeout_s);
+        let discovery: DeviceDiscovery = call_handler_constructor!(
+            self,
+            rnet_tapo::ApiClient::discover_devices,
+            target,
+            timeout_s
+        );
         Ok(PyDeviceDiscovery::new(discovery))
     }
 }

@@ -43,7 +43,11 @@ pub fn init_tracing() -> Result<Option<opentelemetry_sdk::trace::SdkTracerProvid
 
         let tracer_provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
             .with_batch_exporter(exporter)
-            .with_resource(Resource::builder().with_service_name("rnet-tapo-mcp").build())
+            .with_resource(
+                Resource::builder()
+                    .with_service_name("rnet-tapo-mcp")
+                    .build(),
+            )
             .build();
 
         global::set_text_map_propagator(TraceContextPropagator::new());
@@ -53,9 +57,9 @@ pub fn init_tracing() -> Result<Option<opentelemetry_sdk::trace::SdkTracerProvid
         None
     };
 
-    let otel_layer = tracer_provider
-        .as_ref()
-        .map(|provider| tracing_opentelemetry::layer().with_tracer(provider.tracer("rnet-tapo-mcp")));
+    let otel_layer = tracer_provider.as_ref().map(|provider| {
+        tracing_opentelemetry::layer().with_tracer(provider.tracer("rnet-tapo-mcp"))
+    });
 
     tracing_subscriber::registry()
         .with(env_filter)

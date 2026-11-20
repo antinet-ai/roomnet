@@ -9,8 +9,8 @@ mod simulator;
 
 use std::error::Error;
 
-use rstest::rstest;
 use rnet_tapo::{ApiClient, DeviceType, StreamExt};
+use rstest::rstest;
 
 use simulator::SimulatedDevice;
 

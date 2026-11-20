@@ -3,13 +3,13 @@ use std::ops::RangeInclusive;
 use chrono::{DateTime, NaiveDate, Utc};
 use rmcp::schemars;
 use rmcp::schemars::JsonSchema;
-use serde::de;
-use serde::{Deserialize, Serialize};
-use strum::IntoStaticStr;
 use rnet_tapo::requests::{
     BRIGHTNESS_RANGE, COLOR_TEMPERATURE_RANGE, Color, HUE_RANGE, SATURATION_RANGE,
 };
 use rnet_tapo::responses::DetectionResult;
+use serde::de;
+use serde::{Deserialize, Serialize};
+use strum::IntoStaticStr;
 
 /// The Tapo devices found on the local network by the most recent discovery.
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]

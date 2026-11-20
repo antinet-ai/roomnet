@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use pyo3::prelude::*;
-use serde::Serialize;
 use rnet_tapo::responses::DetectionResult;
+use serde::Serialize;
 
 use crate::responses::PyRecordingType;
 

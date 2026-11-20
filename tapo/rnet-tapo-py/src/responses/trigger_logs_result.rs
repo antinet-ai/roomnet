@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
 use pyo3::prelude::*;
-use serde::Serialize;
 use rnet_tapo::responses::{
     S200Event, S200RotationParams, T100Event, T110Event, T300Event, TriggerLog, TriggerLogsResult,
 };
+use serde::Serialize;
 
 // PyO3 cannot expose a Rust enum that mixes unit variants with a data-carrying
 // one, so this plain enum mirrors `S200Event`; the rotation's `params` are
