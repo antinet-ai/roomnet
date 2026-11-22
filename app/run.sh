@@ -4,7 +4,6 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-repo="${ANTINET_DIR:?set ANTINET_DIR to an antinet checkout with built release binaries}"
 site="$here/site"
 socket="$site/run/anet.sock"
 
@@ -23,9 +22,7 @@ trap stop EXIT INT TERM
 
 if [ ! -S "$socket" ]; then
 	mkdir -p "$site/run" && chmod 700 "$site/run"
-	"$repo/engine/target/release/anet" serve --home "$site/home" --socket "$socket" \
-		--vendor-keys "$site/keys/vendor/public-key.json=inference-runtime,sensor-pattern,object-detection" \
-		--memory-mib 9216 >>"$site/serve.log" 2>&1 &
+	"$here/serve.sh" >>"$site/serve.log" 2>&1 &
 	children+=($!)
 	for _ in $(seq 1 50); do [ -S "$socket" ] && break; sleep 0.2; done
 	[ -S "$socket" ] || { echo "anet did not start; see $site/serve.log" >&2; exit 1; }

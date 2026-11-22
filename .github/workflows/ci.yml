@@ -47,6 +47,17 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --locked pytest tests/test_tpap.py tests/test_tsReader.py
 
+  agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app/agent
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --locked pytest
+
   web:
     runs-on: ubuntu-latest
     defaults:

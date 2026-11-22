@@ -10,11 +10,9 @@ roomnet runs a home or small site on [antinet](https://github.com/antinet-ai/ant
 
 ## Run the app
 
-The app needs an antinet checkout with release binaries built (`anet`, `anet-access`, `anet-sign`).
+The app runs on anet's public release: `setup-site.sh` downloads the engine and Antinet's signed models from [antinet-ai/anet](https://github.com/antinet-ai/anet/releases), checks each against the release's SHA-256 list and its Sigstore signature, creates the site in `app/site` and imports the models. It needs `curl`, `tar`, `openssl`, [`cosign`](https://docs.sigstore.dev/cosign/system_config/installation/), `uv` and Node 22, on Linux (x86-64, arm64) or macOS (Apple silicon).
 
 ```bash
-export ANTINET_DIR=~/Desktop/antinet
-(cd app/import && cargo build --release)
 app/setup-site.sh
 cp app/devices.env.example app/site/devices.env   # fill it in
 app/run.sh

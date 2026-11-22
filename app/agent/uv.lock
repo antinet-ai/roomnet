@@ -3,14 +3,6 @@ revision = 3
 requires-python = ">=3.11"
 
 [[package]]
-name = "anet"
-version = "0.1.0"
-source = { git = "https://github.com/antinet-ai/antinet?subdirectory=sdk%2Fpython#abbb7774cbb90dacc87d0d8e14ee2ea391db7d37" }
-dependencies = [
-    { name = "httpx" },
-]
-
-[[package]]
 name = "annotated-doc"
 version = "0.0.7"
 source = { registry = "https://pypi.org/simple" }
@@ -26,6 +18,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/5f/56/a8120250d128bed162cd73c76d45f6ef9991f3e068f62a8ee060afa3104a/annotated_types-0.8.0.tar.gz", hash = "sha256:13b2beaad985e05e2d6407ee4c4f35590b11f8d693a258a561055cac8f64cab7", size = 15893, upload-time = "2026-07-23T20:16:13.995Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/99/91/8acff4f5e50511b911bbccb72b8628a49c68ce14148cd9f6431094859a90/annotated_types-0.8.0-py3-none-any.whl", hash = "sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0", size = 13427, upload-time = "2026-07-23T20:16:12.938Z" },
+]
+
+[[package]]
+name = "antinet"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b7/f7/088a2a19ff37a1d5489570b3b9021e429f46bbde28b48ab900a3c4757bab/antinet-0.1.0.tar.gz", hash = "sha256:d7e8cc0c7b873d5c75d94c6908f6577c093988ccba76e63cfb79c5e5fcc727ab", size = 14548, upload-time = "2026-11-21T13:43:08.302Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/87/ac9f530684332a9a134835e00a184aacdb0eb45c2139260ca9dbf9b24846/antinet-0.1.0-py3-none-any.whl", hash = "sha256:1dd57d7e47b75adda88ea50bda04d8c8418de8dd063ab586cc1534ff16f8259a", size = 17607, upload-time = "2026-11-21T13:43:07.311Z" },
 ]
 
 [[package]]
@@ -352,7 +356,7 @@ name = "rnet-agent"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "anet" },
+    { name = "antinet" },
     { name = "fastapi" },
     { name = "rnet-tapo" },
     { name = "uvicorn" },
@@ -365,7 +369,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "anet", git = "https://github.com/antinet-ai/antinet?subdirectory=sdk%2Fpython" },
+    { name = "antinet", specifier = ">=0.1,<1" },
     { name = "fastapi", specifier = ">=0.115,<1" },
     { name = "rnet-tapo", directory = "../../tapo/rnet-tapo-py" },
     { name = "uvicorn", specifier = ">=0.32,<1" },

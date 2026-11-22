@@ -18,7 +18,7 @@ SENSOR_TASK = "sensor-pattern"
 EXPLANATION_MODEL = "qwen3-4b"
 
 # The detector's 80 class names, in its output order, from the model's own
-# metadata (YOLOv8n trained on COCO).
+# metadata (YOLO11n trained on COCO), as anet's release ships them.
 COCO_LABELS = (
     "person bicycle car motorcycle airplane bus train truck boat traffic-light fire-hydrant "
     "stop-sign parking-meter bench bird cat dog horse sheep cow elephant bear zebra giraffe "

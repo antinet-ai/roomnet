@@ -8,4 +8,3 @@ node_modules/
 *.tsbuildinfo
 .DS_Store
 app/site/
-target/

@@ -1,30 +1,93 @@
 #!/usr/bin/env bash
-# Creates roomnet's anet site in app/site: the site
-# itself, an engineer, the agent's program key bound to this account, the
-# vendor-signed decision bundles (inference runtime, sensor-pattern scorer,
-# object detector) and the explanation model. Passwords are generated here
-# and kept in site/secrets.env, readable by this account only.
+# Creates roomnet's anet site in app/site from anet's public release page:
+# the engine, anet-sign and the signed models (inference runtime,
+# sensor-pattern scorer, object detector), each checked against the page's
+# SHA-256 list and its Sigstore signature from anet's release workflow; then
+# the site itself, an engineer and an operator, the agent's program key bound
+# to this account, the three models imported over the service, and the
+# explanation model from Hugging Face at a pinned digest. Passwords are
+# generated here and kept in site/secrets.env, readable by this account only.
+#
+#   app/setup-site.sh
+#
+# Needs curl, tar, openssl and cosign (https://docs.sigstore.dev/cosign/system_config/installation/).
 set -euo pipefail
 
+release=2
+public_repository="antinet-ai/anet"
+signer_identity="https://github.com/antinet-ai/antinet/.github/workflows/release.yml@refs/tags/release-$release"
+signer_issuer="https://token.actions.githubusercontent.com"
+explanation_url="https://huggingface.co/Qwen/Qwen3-4B-GGUF/resolve/bc640142c66e1fdd12af0bd68f40445458f3869b/Qwen3-4B-Q4_K_M.gguf"
+explanation_sha256="7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5"
+explanation_name="qwen3-4b"
+
 here="$(cd "$(dirname "$0")" && pwd)"
-repo="${ANTINET_DIR:?set ANTINET_DIR to an antinet checkout with built release binaries}"
-bin="$repo/engine/target/release"
 site="$here/site"
-openvino="$repo/vendor/openvino-runtime/2026.4.1-macos-arm64"
-sensor_model="$repo/models/sensor-pattern"
-detector_model="$repo/vendor/vision/data/resource/visionboxresource_x86/models/prod_X86_9275710_YOLOV8_V1.0.0/model.onnx"
-explanation_model="$repo/models/bench/qwen3-4b-Q4_K_M.gguf"
+fail() { echo "setup-site.sh: $*" >&2; exit 1; }
 
-for required in "$bin/anet" "$bin/anet-access" "$bin/anet-sign" "$here/import/target/release/rnet-import" \
-	"$openvino/runtime" "$sensor_model/model.xml" "$detector_model" "$explanation_model"; do
-	[ -e "$required" ] || { echo "missing: $required" >&2; exit 1; }
+for tool in curl tar openssl cosign; do
+	command -v "$tool" >/dev/null || fail "$tool is not installed"
 done
-[ -e "$site" ] && { echo "$site exists; remove it to start over" >&2; exit 1; }
+case "$(uname -s)-$(uname -m)" in
+	Linux-x86_64) platform=linux-x86_64 ;;
+	Linux-aarch64 | Linux-arm64) platform=linux-aarch64 ;;
+	Darwin-arm64) platform=macos-aarch64 ;;
+	*) fail "anet has no release for $(uname -s) $(uname -m)" ;;
+esac
+[ -e "$site" ] && fail "$site exists; remove it to start over"
 
-mkdir -p "$site/home" "$site/keys" "$site/bundles"
-chmod 700 "$site" "$site/home"
+sha256_of() {
+	if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi
+}
+
+mkdir -p "$site/downloads" "$site/keys" "$site/models" "$site/tools" "$site/run"
+chmod 700 "$site" "$site/run"
+downloads="$site/downloads"
+page="https://github.com/$public_repository/releases/download/release-$release"
+
+curl -fsSL --retry 3 -o "$downloads/SHA256SUMS" "$page/SHA256SUMS"
+# Downloads a release asset and its Sigstore bundle, checks the asset's
+# SHA-256 against the page's list and its signature against anet's release
+# workflow for this release's tag.
+fetch_signed() {
+	local name="$1"
+	curl -fsSL --retry 3 -o "$downloads/$name" "$page/$name"
+	curl -fsSL --retry 3 -o "$downloads/$name.sigstore.json" "$page/$name.sigstore.json"
+	if [ "$name" != antinet-models-key.json ]; then
+		local listed
+		listed="$(awk -v name="$name" '$2 == name { print $1 }' "$downloads/SHA256SUMS")"
+		[ -n "$listed" ] || fail "$name is not in the release's SHA256SUMS"
+		[ "$(sha256_of "$downloads/$name")" = "$listed" ] || fail "$name does not match its SHA-256 in SHA256SUMS"
+	fi
+	cosign verify-blob "$downloads/$name" --bundle "$downloads/$name.sigstore.json" \
+		--certificate-identity "$signer_identity" --certificate-oidc-issuer "$signer_issuer" >/dev/null 2>&1 ||
+		fail "$name is not signed by anet's release workflow for release $release"
+}
+
+fetch_signed "anet-$release-$platform.tar.gz"
+fetch_signed "anet-sign-$release-$platform.tar.gz"
+fetch_signed antinet-models-key.json
+models=("inference-runtime-$platform" sensor-pattern object-detection)
+for model in "${models[@]}"; do
+	fetch_signed "anet-models-$release-$model.tar.gz"
+done
+
+tar -C "$site" -xzf "$downloads/anet-$release-$platform.tar.gz"
+mv "$site/anet-$release-$platform" "$site/engine"
+tar -C "$downloads" -xzf "$downloads/anet-sign-$release-$platform.tar.gz"
+mv "$downloads/anet-sign-$release-$platform/anet-sign" "$site/tools/anet-sign"
+for model in "${models[@]}"; do
+	tar -C "$site/models" -xzf "$downloads/anet-models-$release-$model.tar.gz"
+done
+cp "$downloads/antinet-models-key.json" "$site/keys/antinet-models-key.json"
+bin="$site/engine"
+anet_sign="$site/tools/anet-sign"
+
+curl -fsSL --retry 3 -o "$downloads/$explanation_name.gguf" "$explanation_url"
+[ "$(sha256_of "$downloads/$explanation_name.gguf")" = "$explanation_sha256" ] ||
+	fail "the explanation model does not match its pinned SHA-256"
+
 home="$site/home"
-
 admin_password="$(openssl rand -hex 24)"
 engineer_password="$(openssl rand -hex 24)"
 operator_password="$(openssl rand -hex 24)"
@@ -48,31 +111,30 @@ printf '%s\n%s\n%s\n' "$admin_password" "$engineer_password" "$engineer_password
 printf '%s\n%s\n%s\n' "$admin_password" "$operator_password" "$operator_password" |
 	"$bin/anet-access" person add "$home/access" "${common[@]}" --name operator --role Operator
 
-"$bin/anet-sign" keygen "$site/keys/agent"
-"$bin/anet-sign" keygen "$site/keys/vendor"
+"$anet_sign" keygen "$site/keys/agent"
 printf '%s\n' "$admin_password" |
 	"$bin/anet-access" program add "$home/access" "${common[@]}" --name home-agent \
 		--purpose product --keys "$site/keys/agent/public-key.json"
 printf '%s\n' "$admin_password" |
 	"$bin/anet-access" binding set "$home/access" "${common[@]}" --name home-agent --uid "$(id -u)"
 
-vendor_key="$site/keys/vendor/signing-key.json"
-"$bin/anet-sign" runtime "$openvino" --platform macos-aarch64 --out "$site/bundles/runtime" \
-	--key "$vendor_key" --version 1
+# The models go in through the running service, as the engineer.
+socket="$site/run/anet.sock"
+"$here/serve.sh" >>"$site/serve.log" 2>&1 &
+serve=$!
+trap 'kill "$serve" 2>/dev/null || true' EXIT
+for _ in $(seq 1 50); do [ -S "$socket" ] && break; sleep 0.2; done
+[ -S "$socket" ] || fail "anet did not start; see $site/serve.log"
+for model in "${models[@]}"; do
+	printf '%s\n' "$engineer_password" |
+		"$bin/anet" import "$site/models/anet-models-$release-$model" --as engineer --socket "$socket"
+done
+printf '%s\n' "$engineer_password" |
+	"$bin/anet" import "$downloads/$explanation_name.gguf" --name "$explanation_name" --version 1 \
+		--as engineer --socket "$socket"
+kill "$serve"
+wait "$serve" 2>/dev/null || true
+trap - EXIT
+rm -rf "$downloads" "$site/models"
 
-mkdir "$site/bundles/sensor-pattern"
-cp "$sensor_model/model.xml" "$sensor_model/model.bin" "$sensor_model/provenance.json" "$site/bundles/sensor-pattern/"
-"$bin/anet-sign" bundle "$site/bundles/sensor-pattern" --key "$vendor_key" --role sensor-pattern \
-	--kind base --version 1 --entry model.xml
-
-mkdir "$site/bundles/object-detection"
-cp "$detector_model" "$site/bundles/object-detection/model.onnx"
-"$bin/anet-sign" bundle "$site/bundles/object-detection" --key "$vendor_key" --role object-detection \
-	--kind base --version 1 --entry model.onnx
-
-ANET_HOME_ENGINEER=engineer ANET_HOME_ENGINEER_PASSWORD="$engineer_password" \
-	"$here/import/target/release/rnet-import" "$home" "$site/keys/vendor/public-key.json" \
-	"$site/bundles/runtime" "$site/bundles/sensor-pattern" "$site/bundles/object-detection"
-rm -rf "$site/bundles"
-
-echo "site ready in $home; the explanation model is imported by run.sh once the service is up"
+echo "site ready in $home; start roomnet with app/run.sh"
