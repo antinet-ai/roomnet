@@ -56,6 +56,8 @@ jobs:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
       - uses: astral-sh/setup-uv@v6
+      # The agent reads the camera through ffmpeg, and its JPEG test makes a frame with it.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
       - run: uv run --locked pytest
 
   web:
