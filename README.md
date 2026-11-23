@@ -1,11 +1,11 @@
-# roomnet (rnet)
+# roomnet 
 
 roomnet runs a home or small site on [antinet](https://github.com/antinet-ai/antinet): local device control, local models, nothing in the cloud.
 
 | Folder | What it is |
 |---|---|
-| `tapo/` | `rnet-tapo`: Rust client for TP-Link Tapo plugs, bulbs, strips, hubs, sensors and cameras, with Python bindings (`rnet_tapo`) and an MCP server (`rnet-tapo-mcp`) |
-| `mercusys/` | `rnet_mercusys`: Python client for Mercusys and Tapo cameras (control, presets, recordings, streams) |
+| `tapo/` | `rnet-tapo`: Rust client for TP-Link Tapo plugs, bulbs, strips, hubs, sensors and cameras |
+| `mercusys/` | `rnet_mercusys`: Python client for Mercusys and Tapo cameras 
 | `app/` | the roomnet app: the agent, the screen and the site setup on top of anet |
 
 ## Run the app
@@ -14,7 +14,7 @@ The app runs on anet's public release: `setup-site.sh` downloads the engine and 
 
 ```bash
 app/setup-site.sh
-cp app/devices.env.example app/site/devices.env   # fill it in
+cp app/devices.env.example app/site/devices.env  
 app/run.sh
 ```
 
