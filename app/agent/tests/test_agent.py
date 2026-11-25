@@ -4,7 +4,8 @@ from pathlib import Path
 import pytest
 
 from rnet_agent import settings as settings_module
-from rnet_agent.camera import _jpeg_size
+from rnet_agent.camera import _jpeg_size, stream_ended_message
+from rnet_agent.problems import device_problem
 from rnet_agent.series import WINDOW_LENGTH, SeriesJudge
 from rnet_agent.state import HomeState
 from rnet_agent.tapo_devices import WrongDevice, check_model
@@ -230,3 +231,34 @@ def test_the_door_turns_the_light_off_only_when_a_person_switched_the_automation
     assert bulb.switched == [False]  # once per opening, never for a close
     assert state.door_lights_off["last_run"] == opened["time"]
     assert any("because antiguard opened" in item["text"] for item in state.timeline)
+
+
+@pytest.mark.parametrize(
+    ("ffmpeg_error", "expected_start"),
+    [
+        ("[tcp @ 0x1] Connection to tcp://192.168.0.29:554 failed: Host is down", "The camera can't be reached"),
+        ("[tcp @ 0x1] Connection to tcp://192.168.0.29:554 failed: Operation timed out", "The camera can't be reached"),
+        ("[rtsp @ 0x1] method DESCRIBE failed: 401 Unauthorized", "The camera turned down"),
+        ("[tcp @ 0x1] Connection to tcp://192.168.0.29:554 failed: Connection refused", "The camera refused"),
+        ("[h264 @ 0x1] decode_slice_header error", "The camera stream ended."),
+        (None, "The camera stream ended."),
+    ],
+)
+def test_stream_ended_message_names_the_cause(ffmpeg_error, expected_start):
+    assert stream_ended_message(ffmpeg_error).startswith(expected_start)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        (
+            'Http(reqwest::Error { kind: Request, url: "http://192.168.0.10/", source: ConnectError("tcp connect error", '
+            'Os { code: 64, kind: Uncategorized, message: "Host is down" }) })',
+            "The bulb can't be reached on the network.",
+        ),
+        ("ConnectError(Os { code: 61, kind: ConnectionRefused, message: \"Connection refused\" })", "The bulb refused the connection."),
+        ("The device at 192.168.0.10 is model L530, not the P115 this setting expects.", "The bulb could not be read: The device at 192.168.0.10 is model L530, not the P115 this setting expects."),
+    ],
+)
+def test_device_problem_reads_as_one_plain_sentence(raw, expected):
+    assert device_problem("bulb", raw) == expected

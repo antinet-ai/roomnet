@@ -13,6 +13,7 @@ import threading
 
 from .anet_site import OBJECT_TASK, AnetSite
 from .decisions import record_decision
+from .problems import is_refused, is_unreachable
 from .state import HomeState, now
 
 log = logging.getLogger(__name__)
@@ -30,6 +31,21 @@ READ_CHUNK_BYTES = 64 * 1024
 # A frame of the low-quality stream is well under this; anything larger is
 # a broken stream, not a frame.
 MAX_FRAME_BYTES = 4 * 1024 * 1024
+# The account failure is the camera's own; network failures use the words
+# every device shares (problems.py).
+ACCOUNT_REFUSED_WORDS = ("401", "Unauthorized")
+
+
+def stream_ended_message(last_ffmpeg_error: str | None) -> str:
+    """The plainest true sentence for why the stream stopped."""
+    if last_ffmpeg_error:
+        if is_unreachable(last_ffmpeg_error):
+            return "The camera can't be reached on the network. Trying again every few seconds."
+        if any(word in last_ffmpeg_error for word in ACCOUNT_REFUSED_WORDS):
+            return "The camera turned down the camera account in devices.env."
+        if is_refused(last_ffmpeg_error):
+            return "The camera refused the connection on its video port."
+    return "The camera stream ended."
 
 
 def _jpeg_size(frame: bytes) -> tuple[int, int] | None:
@@ -56,6 +72,7 @@ class Camera:
         self._site = site
         self._stop = threading.Event()
         self._process: subprocess.Popen | None = None
+        self._last_ffmpeg_error: str | None = None
 
     def start(self) -> None:
         threading.Thread(target=self._read_forever, name="camera", daemon=True).start()
@@ -74,7 +91,7 @@ class Camera:
                 message = (
                     f"The camera sent no picture for {STALL_SECONDS:.0f} seconds."
                     if stalled
-                    else "The camera stream ended."
+                    else stream_ended_message(self._last_ffmpeg_error)
                 )
             except OSError as error:
                 message = f"The camera stream could not be read: {error.strerror or error}."
@@ -108,6 +125,7 @@ class Camera:
             "-pix_fmt", "yuvj420p",
             "-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", "5", "-",
         ]
+        self._last_ffmpeg_error = None
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self._process = process
         assert process.stdout is not None
@@ -152,8 +170,9 @@ class Camera:
         assert process.stderr is not None
         for line in process.stderr:
             # ffmpeg repeats the URL, credentials included, in its errors.
-            text = line.decode(errors="replace").replace(self._url, f"rtsp://{self._host}")
-            log.warning("ffmpeg: %s", text.strip()[:500])
+            text = line.decode(errors="replace").replace(self._url, f"rtsp://{self._host}").strip()[:500]
+            self._last_ffmpeg_error = text
+            log.warning("ffmpeg: %s", text)
 
     def _end_when_stalled(
         self, process: subprocess.Popen, stalled: threading.Event, stream_over: threading.Event

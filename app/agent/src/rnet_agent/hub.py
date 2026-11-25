@@ -16,6 +16,7 @@ from rnet_tapo import ApiClient
 from rnet_tapo.requests import AlarmDuration, AlarmRingtone, AlarmVolume
 
 from .anet_site import AnetSite
+from .problems import device_problem
 from .series import SeriesJudge
 from .state import HomeState, SourceState
 from .controls import SirenBody
@@ -146,7 +147,7 @@ class Hub:
                 hub = await self._connected()
             except Exception as error:  # noqa: BLE001 - shown on the screen, never hidden
                 self._hub = None
-                message = f"The hub could not be reached: {error}"
+                message = device_problem("hub", error, "could not be reached")
                 with self._state.lock:
                     self._state.hub.failed(message)
                 self._temperature.failed(message)
@@ -158,7 +159,7 @@ class Hub:
             except Exception as error:  # noqa: BLE001 - shown on the screen, never hidden
                 self._hub = None
                 with self._state.lock:
-                    self._state.hub.failed(f"The hub could not be read: {error}")
+                    self._state.hub.failed(device_problem("hub", error))
                 await asyncio.sleep(RECONNECT_DELAY_SECONDS)
                 continue
             # Each sensor is read on its own, so one with a flat battery
@@ -179,7 +180,7 @@ class Hub:
             value = await read
         except Exception as error:  # noqa: BLE001 - shown on the screen, never hidden
             with self._state.lock:
-                source.failed(f"The {what} could not be read: {error}")
+                source.failed(device_problem(what, error))
             return False
         with self._state.lock:
             source.succeeded(value)

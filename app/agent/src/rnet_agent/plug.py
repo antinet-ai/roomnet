@@ -12,6 +12,7 @@ from rnet_tapo.responses import PowerState
 
 from .anet_site import AnetSite
 from .controls import PLUG_SENSOR
+from .problems import device_problem
 from .series import SeriesJudge
 from .state import HomeState
 from .tapo_devices import DeviceLoop, check_model
@@ -95,7 +96,7 @@ class Plug:
             except Exception as error:  # noqa: BLE001 - shown on the screen, never hidden
                 self._device = None
                 with self._state.lock:
-                    self._state.plug.failed(f"The plug could not be read: {error}")
+                    self._state.plug.failed(device_problem("plug", error))
                 await asyncio.sleep(RECONNECT_DELAY_SECONDS)
                 continue
             if usage.current_power is None:

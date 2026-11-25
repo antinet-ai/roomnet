@@ -25,6 +25,7 @@ from .controls import (
 from .decisions import frame_for
 from .hub import Hub
 from .plug import Plug
+from .problems import device_problem
 from .state import HomeState, now
 
 STREAM_BOUNDARY = "frame"
@@ -45,7 +46,7 @@ def _device_call(what: str, call) -> None:
     except ValueError as error:
         raise HTTPException(400, str(error)) from error
     except Exception as error:  # noqa: BLE001 - returned to the person
-        raise HTTPException(502, f"The {what} did not do it: {error}") from error
+        raise HTTPException(502, device_problem(what, error, "did not do it")) from error
 
 
 def build(

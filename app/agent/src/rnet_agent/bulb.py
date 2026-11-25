@@ -9,6 +9,7 @@ import asyncio
 from rnet_tapo import ApiClient
 
 from .state import HomeState
+from .problems import device_problem
 from .tapo_devices import DeviceLoop, check_model
 
 READ_INTERVAL_SECONDS = 5.0
@@ -78,5 +79,5 @@ class Bulb:
             except Exception as error:  # noqa: BLE001 - shown on the screen, never hidden
                 self._device = None
                 with self._state.lock:
-                    self._state.bulb.failed(f"The bulb could not be read: {error}")
+                    self._state.bulb.failed(device_problem("bulb", error))
             await asyncio.sleep(READ_INTERVAL_SECONDS)
