@@ -76,6 +76,126 @@ export function TallSlider({
 	);
 }
 
+const TICKS = 32;
+
+/**
+ * A level shown as a row of ticks. Hovering previews where a click would
+ * land, dragging reports each value through `onPreview` so the reading
+ * above can follow, and one value is sent when let go.
+ */
+export function TickSlider({
+	value,
+	min,
+	max,
+	fill,
+	label,
+	disabled,
+	onPreview,
+	onCommit,
+}: {
+	value: number;
+	min: number;
+	max: number;
+	fill: string;
+	label: string;
+	disabled?: boolean;
+	onPreview: (value: number | null) => void;
+	onCommit: (value: number) => void;
+}) {
+	const track = useRef<HTMLDivElement>(null);
+	const [dragging, setDragging] = useState<number | null>(null);
+	const [hovering, setHovering] = useState<number | null>(null);
+	const shown = dragging ?? value;
+	const ticksFor = (level: number) => Math.round(((level - min) / (max - min)) * TICKS);
+	const filled = ticksFor(shown);
+	const hovered = hovering === null || dragging !== null ? null : ticksFor(hovering);
+
+	const valueAt = (clientX: number) => {
+		const box = track.current?.getBoundingClientRect();
+		if (!box) return value;
+		const fraction = Math.min(1, Math.max(0, (clientX - box.left) / box.width));
+		return Math.max(min, Math.round(min + fraction * (max - min)));
+	};
+	const drag = (next: number | null) => {
+		setDragging(next);
+		onPreview(next);
+	};
+	const commit = (next: number) => onCommit(Math.min(max, Math.max(min, next)));
+
+	return (
+		<div
+			ref={track}
+			role="slider"
+			aria-label={label}
+			aria-valuemin={min}
+			aria-valuemax={max}
+			aria-valuenow={shown}
+			aria-disabled={disabled}
+			tabIndex={disabled ? -1 : 0}
+			className={clsx(
+				"flex gap-[3px] items-stretch h-11 rounded-md touch-none select-none",
+				"focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-9",
+				disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer",
+			)}
+			onPointerDown={(event) => {
+				if (disabled) return;
+				event.currentTarget.setPointerCapture(event.pointerId);
+				drag(valueAt(event.clientX));
+			}}
+			onPointerMove={(event) => {
+				if (disabled) return;
+				if (dragging !== null) drag(valueAt(event.clientX));
+				else setHovering(valueAt(event.clientX));
+			}}
+			onPointerLeave={() => setHovering(null)}
+			onPointerUp={() => {
+				if (dragging !== null) commit(dragging);
+				drag(null);
+			}}
+			onKeyDown={(event) => {
+				if (disabled) return;
+				const step = event.key === "ArrowRight" || event.key === "ArrowUp" ? 5 : event.key === "ArrowLeft" || event.key === "ArrowDown" ? -5 : 0;
+				if (step) {
+					event.preventDefault();
+					commit(value + step);
+				}
+			}}
+		>
+			{Array.from({ length: TICKS }, (_, tick) => {
+				const lit = tick < filled;
+				const previewed = hovered !== null && tick >= Math.min(filled, hovered) && tick < Math.max(filled, hovered);
+				return (
+					<span
+						key={tick}
+						className={clsx("flex-1 rounded-full transition-colors duration-100", !lit && (previewed ? "bg-gray-8" : "bg-gray-5"))}
+						style={lit ? { background: fill, opacity: previewed ? 0.55 : 1 } : undefined}
+					/>
+				);
+			})}
+		</div>
+	);
+}
+
+/** The same row of ticks, read-only: how far along something is. */
+export function TickProgress({ fraction, label }: { fraction: number; label: string }) {
+	const clamped = Math.min(1, Math.max(0, fraction));
+	const filled = Math.round(clamped * TICKS);
+	return (
+		<div
+			role="progressbar"
+			aria-label={label}
+			aria-valuemin={0}
+			aria-valuemax={100}
+			aria-valuenow={Math.round(clamped * 100)}
+			className="flex gap-[3px] h-6"
+		>
+			{Array.from({ length: TICKS }, (_, tick) => (
+				<span key={tick} className={clsx("flex-1 rounded-full", tick < filled ? "bg-gray-12" : "bg-gray-5")} />
+			))}
+		</div>
+	);
+}
+
 /**
  * A colour wheel: the angle is the hue and the distance from the centre the
  * saturation. Sends one colour when let go.

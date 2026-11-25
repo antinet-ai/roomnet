@@ -1,13 +1,13 @@
 "use client";
 
 import { faCamera, faChartLine } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useState } from "react";
 import { Button } from "@/ui/Button";
 import { Card } from "@/ui/Card";
 import { BoxOverlay, boxesFrom } from "./CameraView";
+import { CardTop, moment } from "./HomeParts";
 import { SeriesChart } from "./SeriesChart";
-import { type DecisionEntry, type DeviceAction, percent, postJson, timeAgo, useHome } from "./useHome";
+import { type DecisionEntry, type DeviceAction, percent, postJson, useHome } from "./useHome";
 
 // What each device action is called on a card; the person's tap is the only thing that takes one.
 const DEVICE_ACTIONS: Record<DeviceAction, { label: string; taken: string }> = {
@@ -16,7 +16,7 @@ const DEVICE_ACTIONS: Record<DeviceAction, { label: string; taken: string }> = {
 	plug_off: { label: "Switch plug off", taken: "Plug switched off" },
 };
 
-function headline(decision: DecisionEntry, sensorLabel: string): string {
+export function headline(decision: DecisionEntry, sensorLabel: string): string {
 	if (decision.source === "camera") {
 		if (decision.label === "nothing") return "Nothing in view";
 		const objects = decision.attributes.objects ?? decision.label;
@@ -79,21 +79,11 @@ export function DecisionCard({ decision }: { decision: DecisionEntry }) {
 	const needsPerson = decision.to_person && decision.action === null;
 	return (
 		<Card className="flex flex-col gap-4">
-			<div className="flex gap-3 items-start">
-				<div className="flex justify-center items-center rounded-lg size-9 shrink-0 bg-gray-3">
-					<FontAwesomeIcon
-						icon={decision.source === "camera" ? faCamera : faChartLine}
-						className="text-gray-12 size-[14px]"
-					/>
-				</div>
-				<div className="flex flex-col flex-1 gap-1 min-w-0">
-					<p className="text-sm font-medium truncate text-gray-12">{headline(decision, sensorLabel)}</p>
-					<p className="text-xs text-gray-10">
-						{decision.source === "camera" ? "Camera" : sensorLabel} · {timeAgo(decision.time)} · model v
-						{decision.model_version}
-					</p>
-				</div>
-				<Confidence value={decision.confidence} threshold={decision.threshold} />
+			<div className="flex flex-col gap-3">
+				<CardTop icon={decision.source === "camera" ? faCamera : faChartLine} label={`${decision.source === "camera" ? "Camera" : sensorLabel} · ${moment(decision.time)}`}>
+					<Confidence value={decision.confidence} threshold={decision.threshold} />
+				</CardTop>
+				<p className="text-xl font-medium tracking-tight text-gray-12">{headline(decision, sensorLabel)}</p>
 			</div>
 			{decision.has_frame && (
 				<div className="overflow-hidden relative w-full rounded-xl aspect-video bg-gray-3">
@@ -148,7 +138,7 @@ export function DecisionCard({ decision }: { decision: DecisionEntry }) {
 				</div>
 			) : decision.action ? (
 				<p className="text-xs text-right text-gray-10">
-					{decision.action === "confirm" ? "Confirmed" : "Dismissed"} and recorded
+					{decision.action === "confirm" ? "Confirmed" : "Dismissed"} · model v{decision.model_version}
 				</p>
 			) : null}
 			{error && <p className="text-sm text-right text-red-500">{error}</p>}

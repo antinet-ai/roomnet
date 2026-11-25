@@ -1,6 +1,6 @@
 "use client";
 
-import { faGaugeHigh, faListCheck, faPlug, faTableColumns } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faGaugeHigh, faListCheck, faPlug, faTableColumns } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { motion } from "motion/react";
@@ -127,11 +127,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
 						<button
 							type="button"
 							onClick={() => setMobileOpen(true)}
-							className="flex justify-center items-center rounded-lg border shadow-xs size-[38px] bg-gray-1 border-gray-4 text-gray-11"
+							className="flex justify-center items-center rounded-lg border shadow-xs size-[38px] bg-gray-1 border-gray-4 text-gray-12"
 							aria-label="Open menu"
 						>
-							<AntinetMark className="size-[18px] text-gray-12" />
+							<FontAwesomeIcon icon={faBars} className="size-[15px]" />
 						</button>
+						<AntinetMark className="size-[20px] text-gray-12" />
 					</div>
 					<div className="flex overflow-y-auto relative flex-col flex-1 p-5 pt-3 h-full overscroll-contain lg:px-8 lg:pt-6 lg:pb-8">
 						<div className="flex flex-col flex-1 gap-8 min-h-fit">{children}</div>

@@ -6,7 +6,11 @@ const HEIGHT = 160;
 /** One sensor's readings as one line on a hairline grid, newest on the right. */
 export function SeriesChart({ points, unit, height = HEIGHT }: { points: number[]; unit: string; height?: number }) {
 	if (points.length < 2) {
-		return <div className="w-full rounded-xl bg-gray-3" style={{ height }} />;
+		return (
+			<div className="flex justify-center items-center w-full rounded-xl bg-gray-2" style={{ height }}>
+				<p className="text-[13px] text-gray-10">The chart starts with the second reading</p>
+			</div>
+		);
 	}
 	const highest = Math.max(...points);
 	const lowest = Math.min(...points);

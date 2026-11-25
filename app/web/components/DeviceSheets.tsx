@@ -38,9 +38,9 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 // White presets from candlelight to daylight, as the bulb's own app offers.
-const WHITES = [2700, 3500, 4500, 5500, 6500];
+export const WHITES = [2700, 3500, 4500, 5500, 6500];
 // Colour presets: hue and saturation.
-const COLOURS: [number, number][] = [
+export const COLOURS: [number, number][] = [
 	[0, 100],
 	[30, 100],
 	[55, 100],
@@ -142,7 +142,7 @@ export function BulbControls() {
 	);
 }
 
-const TIMERS = [15 * 60, 30 * 60, 60 * 60, 2 * 60 * 60];
+export const TIMERS = [15 * 60, 30 * 60, 60 * 60, 2 * 60 * 60];
 
 export function PlugControls() {
 	const { state, refresh } = useHome();

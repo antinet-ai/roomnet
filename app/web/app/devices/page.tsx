@@ -1,144 +1,139 @@
 "use client";
 
-import { faCamera, faLightbulb, faPlug, faTowerBroadcast, type IconDefinition } from "@fortawesome/free-solid-svg-icons";
+import {
+	faCamera,
+	faChevronRight,
+	faDoorOpen,
+	faLightbulb,
+	faPersonWalking,
+	faPlug,
+	faTemperatureHalf,
+	faTowerBroadcast,
+	type IconDefinition,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useState } from "react";
-import { PageTitle, SourceProblem } from "@/components/PageTitle";
-import { postJson, type SourceState, timeAgo, useHome } from "@/components/useHome";
+import { HomeSheets, type OpenSheet } from "@/components/HomeCards";
+import { moment } from "@/components/HomeParts";
+import { PageTitle } from "@/components/PageTitle";
+import { type SourceState, useHome } from "@/components/useHome";
 import { Card } from "@/ui/Card";
-import { Switch } from "@/ui/Switch";
 
-function Status({ ok }: { ok: boolean }) {
+type DeviceRow = {
+	key: string;
+	icon: IconDefinition;
+	kind: string;
+	name: string | null;
+	model: string | null;
+	batteryLow: boolean;
+	source: SourceState<unknown> | undefined;
+	sheet: OpenSheet;
+};
+
+function connected(source: SourceState<unknown> | undefined): boolean {
+	return Boolean(source?.value_time) && !source?.error;
+}
+
+function described<T extends { name: string; model: string }>(source: SourceState<T> | undefined) {
+	return { name: source?.value?.name ?? null, model: source?.value?.model ?? null, source };
+}
+
+function batteryLow(source: SourceState<{ battery_low: boolean }> | undefined): boolean {
+	return Boolean(source?.value?.battery_low);
+}
+
+/** Connected reads as plain text; only a device that is not answering gets colour. */
+function Status({ row }: { row: DeviceRow }) {
+	if (connected(row.source)) return <span className="text-[13px] text-gray-10">Connected</span>;
 	return (
-		<span className="flex gap-1.5 items-center text-xs text-gray-10">
-			<span className={ok ? "rounded-full size-2 bg-green-500" : "rounded-full size-2 bg-red-500"} />
-			{ok ? "Connected" : "Not connected"}
+		<span className="flex gap-1.5 items-center text-[13px] text-gray-11">
+			<span className="rounded-full size-2 bg-red-500" />
+			{row.source?.value_time ? `Seen ${moment(row.source.value_time)}` : "Offline"}
 		</span>
 	);
 }
 
-function connected<T>(source: SourceState<T> | null | undefined): boolean {
-	return Boolean(source?.value_time) && !source?.error;
+/** Under the name: the device's problem in one sentence when it has one, otherwise what it is. */
+function subtitle(row: DeviceRow): string {
+	if (row.source?.error) return row.source.error;
+	if (row.model) return `${row.kind} · ${row.model}`;
+	return row.name ? row.kind : "Waiting for its first answer";
 }
 
-function since<T>(source: SourceState<T> | null | undefined): string | null {
-	return source?.value_time ? timeAgo(source.value_time) : null;
-}
-
-function DeviceHeader({ icon, name, detail, ok }: { icon: IconDefinition; name: string; detail: string; ok: boolean }) {
+function RowContent({ row }: { row: DeviceRow }) {
 	return (
-		<div className="flex gap-3 items-center">
-			<div className="flex justify-center items-center rounded-lg size-9 bg-gray-3">
-				<FontAwesomeIcon icon={icon} className="text-gray-12 size-[14px]" />
-			</div>
-			<div className="flex flex-col flex-1 min-w-0">
-				<p className="text-sm font-medium truncate text-gray-12">{name}</p>
-				<p className="text-xs text-gray-10">{detail}</p>
-			</div>
-			<Status ok={ok} />
-		</div>
-	);
-}
-
-type Switchable = { on: boolean; name: string; model: string };
-
-/** A device a person switches on or off; the tap here is the only place it changes. */
-function SwitchCard<T extends Switchable>({
-	icon,
-	fallbackName,
-	path,
-	source,
-}: {
-	icon: IconDefinition;
-	fallbackName: string;
-	path: string;
-	source: SourceState<T> | null | undefined;
-}) {
-	const { refresh } = useHome();
-	const [switching, setSwitching] = useState(false);
-	const [switchError, setSwitchError] = useState<string | null>(null);
-	const value = source?.value ?? null;
-
-	const flip = async (on: boolean) => {
-		setSwitching(true);
-		setSwitchError(null);
-		try {
-			await postJson(path, { on });
-			await refresh();
-		} catch (failure) {
-			setSwitchError(failure instanceof Error ? failure.message : `The ${fallbackName.toLowerCase()} did not switch.`);
-		} finally {
-			setSwitching(false);
-		}
-	};
-
-	return (
-		<Card className="flex flex-col gap-4">
-			<DeviceHeader
-				icon={icon}
-				name={value?.name ?? fallbackName}
-				detail={value ? `${value.model}, local API` : "Local API"}
-				ok={connected(source)}
-			/>
-			<div className="flex justify-between items-center pt-4 border-t border-gray-3">
-				<p className="text-sm text-gray-12">Power</p>
-				<Switch checked={value?.on ?? false} disabled={!value || switching} onCheckedChange={flip} />
-			</div>
-			{switchError && <p className="text-sm text-red-500">{switchError}</p>}
-			<SourceProblem error={source?.error ?? null} since={since(source)} />
-		</Card>
+		<>
+			<span className="flex justify-center items-center rounded-lg size-9 shrink-0 bg-gray-3 text-gray-11">
+				<FontAwesomeIcon icon={row.icon} className="size-[14px]" />
+			</span>
+			<span className="flex flex-col flex-1 min-w-0">
+				<span className="text-sm font-medium truncate text-gray-12">{row.name ?? row.kind}</span>
+				<span className={row.source?.error ? "text-[13px] line-clamp-2 text-gray-11" : "text-[13px] truncate text-gray-10"}>{subtitle(row)}</span>
+			</span>
+			{row.batteryLow && <span className="px-2 h-6 text-xs leading-6 rounded-full shrink-0 bg-gray-3 text-gray-11">Battery low</span>}
+			<Status row={row} />
+		</>
 	);
 }
 
 export default function Devices() {
 	const { state } = useHome();
-	const camera = state?.camera ?? null;
-	const hub = state?.hub ?? null;
-	const children: { what: string; source: SourceState<{ name: string; model: string }> | undefined }[] = [
-		{ what: "Door", source: state?.door },
-		{ what: "Motion", source: state?.motion },
-		{ what: "Climate", source: state?.climate },
+	const [open, setOpen] = useState<OpenSheet>(null);
+	const camera = state?.camera;
+
+	const rows: DeviceRow[] = [
+		{
+			key: "camera",
+			icon: faCamera,
+			kind: "Camera",
+			name: null,
+			model: camera?.value ? `${camera.value.width} × ${camera.value.height}` : null,
+			batteryLow: false,
+			source: camera,
+			sheet: null,
+		},
+		{ key: "bulb", icon: faLightbulb, kind: "Light", ...described(state?.bulb), batteryLow: false, sheet: "bulb" },
+		{ key: "plug", icon: faPlug, kind: "Smart plug", ...described(state?.plug), batteryLow: false, sheet: "plug" },
+		{ key: "hub", icon: faTowerBroadcast, kind: "Hub and siren", ...described(state?.hub), batteryLow: false, sheet: "siren" },
+		{ key: "door", icon: faDoorOpen, kind: "Door sensor", ...described(state?.door), batteryLow: batteryLow(state?.door), sheet: "door" },
+		{ key: "motion", icon: faPersonWalking, kind: "Motion sensor", ...described(state?.motion), batteryLow: batteryLow(state?.motion), sheet: "motion" },
+		{ key: "climate", icon: faTemperatureHalf, kind: "Climate sensor", ...described(state?.climate), batteryLow: batteryLow(state?.climate), sheet: "climate" },
 	];
+	const online = rows.filter((row) => connected(row.source)).length;
 
 	return (
 		<>
-			<PageTitle title="Devices" />
-			<div className="flex flex-col gap-4 max-w-lg">
-				<Card className="flex flex-col gap-4">
-					<DeviceHeader
-						icon={faCamera}
-						name="Camera"
-						detail={camera?.value ? `${camera.value.width} × ${camera.value.height}, RTSP` : "RTSP"}
-						ok={connected(camera)}
-					/>
-					<SourceProblem error={camera?.error ?? null} since={since(camera)} />
-				</Card>
-				<SwitchCard icon={faPlug} fallbackName="Plug" path="/api/plug" source={state?.plug} />
-				<SwitchCard icon={faLightbulb} fallbackName="Bulb" path="/api/bulb" source={state?.bulb} />
-				<Card className="flex flex-col gap-4">
-					<DeviceHeader
-						icon={faTowerBroadcast}
-						name={hub?.value?.name || "Hub"}
-						detail={hub?.value ? `${hub.value.model}, local API` : "Local API"}
-						ok={connected(hub)}
-					/>
-					<div className="flex flex-col gap-3 pt-4 border-t border-gray-3">
-						{children.map(({ what, source }) => (
-							<div key={what} className="flex flex-col gap-1">
-								<div className="flex justify-between items-center">
-									<p className="text-sm text-gray-12">
-										{what}
-										{source?.value ? <span className="text-gray-10"> · {source.value.name}, {source.value.model}</span> : null}
-									</p>
-									<Status ok={connected(source)} />
+			<PageTitle title="Devices">
+				<p className="text-sm tabular-nums text-gray-10">
+					{online} of {rows.length} connected
+				</p>
+			</PageTitle>
+			<Card className="overflow-hidden p-0">
+				<ul className="flex flex-col">
+					{rows.map((row) => (
+						<li key={row.key} className="border-t border-gray-3 first:border-t-0">
+							{row.sheet ? (
+								<button
+									type="button"
+									onClick={() => setOpen(row.sheet)}
+									className="flex gap-3 items-center px-4 py-3.5 w-full text-left transition-colors duration-150 group hover:bg-gray-2 sm:px-5"
+								>
+									<RowContent row={row} />
+									<FontAwesomeIcon
+										icon={faChevronRight}
+										className="transition-all duration-200 size-[10px] shrink-0 text-gray-8 group-hover:translate-x-0.5 group-hover:text-gray-11"
+									/>
+								</button>
+							) : (
+								<div className="flex gap-3 items-center px-4 py-3.5 pr-[42px] sm:px-5 sm:pr-[46px]">
+									<RowContent row={row} />
 								</div>
-								<SourceProblem error={source?.error ?? null} since={since(source)} />
-							</div>
-						))}
-					</div>
-					<SourceProblem error={hub?.error ?? null} since={since(hub)} />
-				</Card>
-			</div>
+							)}
+						</li>
+					))}
+				</ul>
+			</Card>
+			<HomeSheets open={open} onClose={() => setOpen(null)} />
 		</>
 	);
 }

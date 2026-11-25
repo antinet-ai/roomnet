@@ -70,14 +70,18 @@ export function CameraView({
 	boxes: DetectedBox[];
 }) {
 	return (
-		<div className="overflow-hidden relative w-full rounded-xl aspect-video bg-gray-3">
-			{streamUrl ? (
-				// An MJPEG stream from the local agent; next/image cannot show one.
-				// eslint-disable-next-line @next/next/no-img-element
-				<img src={streamUrl} alt="Live camera" className="object-contain absolute inset-0 w-full h-full" />
-			) : null}
-			<div className="absolute inset-0">
-				<BoxOverlay boxes={boxes} />
+		// The frame keeps its 16:9 box so detection boxes stay on target, and sits
+		// centred when the card is stretched taller than the picture.
+		<div className="flex overflow-hidden items-center w-full h-full rounded-xl bg-gray-3">
+			<div className="relative w-full aspect-video">
+				{streamUrl ? (
+					// An MJPEG stream from the local agent; next/image cannot show one.
+					// eslint-disable-next-line @next/next/no-img-element
+					<img src={streamUrl} alt="Live camera" className="object-contain absolute inset-0 w-full h-full" />
+				) : null}
+				<div className="absolute inset-0">
+					<BoxOverlay boxes={boxes} />
+				</div>
 			</div>
 		</div>
 	);
