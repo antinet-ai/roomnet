@@ -1,6 +1,6 @@
 # roomnet 
 
-roomnet runs a home or small site on [antinet](https://github.com/antinet-ai/antinet): local device control, local models, nothing in the cloud.
+roomnet runs a home or small site on [antinet](https://antinet.co): local device control, local models, nothing in the cloud.
 
 | Folder | What it is |
 |---|---|
