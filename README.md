@@ -2,6 +2,8 @@
 
 roomnet runs a home or small site on [antinet](https://antinet.co): local device control, local models, nothing in the cloud.
 
+![roomnet demo](https://res.cloudinary.com/unyt8jsx/image/upload/v1795638640/shotcandy-2028x1143_1x.png)
+
 | Folder | What it is |
 |---|---|
 | `tapo/` | `rnet-tapo`: Rust client for TP-Link Tapo plugs, bulbs, strips, hubs, sensors and cameras |
