@@ -8,6 +8,21 @@ roomnet runs a home or small site on [antinet](https://github.com/antinet-ai/ant
 | `mercusys/` | `rnet_mercusys`: Python client for Mercusys and Tapo cameras 
 | `app/` | the roomnet app: the agent, the screen and the site setup on top of anet |
 
+## What to buy
+
+| Device | Model | Price (USD) |
+|---|---|---|
+| Camera | Mercusys MC200 or any Tapo camera | ~$25 |
+| Hub | Tapo H100 | ~$25 |
+| Door sensor | Tapo T110 | ~$15 |
+| Motion sensor | Tapo T100 | ~$15 |
+| Temperature sensor | Tapo T315 | ~$25 |
+| Smart plug | Tapo P115 | ~$15 |
+| Smart bulb | Tapo L530 | ~$15 |
+| **Total** | | **~$135** |
+
+Prices are rough. Plus a Mac (Apple silicon) or Linux computer to run it.
+
 ## Run the app
 
 The app runs on anet's public release: `setup-site.sh` downloads the engine and Antinet's signed models from [antinet-ai/anet](https://github.com/antinet-ai/anet/releases), checks each against the release's SHA-256 list and its Sigstore signature, creates the site in `app/site` and imports the models. It needs `curl`, `tar`, `openssl`, [`cosign`](https://docs.sigstore.dev/cosign/system_config/installation/), `uv` and Node 22, on Linux (x86-64, arm64) or macOS (Apple silicon).
