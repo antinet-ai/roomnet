@@ -76,6 +76,7 @@ def build(
                 "bulb": state.bulb.as_json(),
                 "climate_record": state.climate_record.as_json(),
                 "door_lights_off": dict(state.door_lights_off),
+                "watch": dict(state.watch),
                 "series": {sensor: series.as_json() for sensor, series in state.series.items()},
                 "timeline": [dict(item) for item in state.timeline],
                 "pending": sum(

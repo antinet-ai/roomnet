@@ -1,6 +1,6 @@
 "use client";
 
-import { faBars, faGaugeHigh, faListCheck, faPlug, faTableColumns } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faClock, faGaugeHigh, faListCheck, faPlug, faTableColumns } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { motion } from "motion/react";
@@ -17,6 +17,7 @@ const navigation = [
 	{ name: "Decisions", href: "/decisions", icon: faListCheck },
 	{ name: "Sensors", href: "/sensors", icon: faGaugeHigh },
 	{ name: "Devices", href: "/devices", icon: faPlug },
+	{ name: "Watch", href: "/watch", icon: faClock },
 ];
 
 // The viralway dashboard shell: a 274px sidebar on gray-1 with 38px rows and

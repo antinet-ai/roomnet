@@ -86,6 +86,11 @@ class HomeState:
     door_lights_off: dict[str, Any] = field(
         default_factory=lambda: {"enabled": False, "last_run": None, "error": None}
     )
+    # The watch (watch.py): whether its API listens, and the last request
+    # that carried the token.
+    watch: dict[str, Any] = field(
+        default_factory=lambda: {"enabled": False, "port": None, "last_seen": None, "address": None}
+    )
     series: dict[str, SeriesState] = field(default_factory=dict)
     # What happened in the home, from every source (specs/0078, MORE-14),
     # each with a key so an event read twice from a device's log is kept once.

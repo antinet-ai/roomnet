@@ -9,6 +9,7 @@ roomnet runs a home or small site on [antinet](https://antinet.co): local device
 | `tapo/` | `rnet-tapo`: Rust client for TP-Link Tapo plugs, bulbs, strips, hubs, sensors and cameras |
 | `mercusys/` | `rnet_mercusys`: Python client for Mercusys and Tapo cameras 
 | `app/` | the roomnet app: the agent, the screen and the site setup on top of anet |
+| `watch/` | roomnet on a LilyGO T-Watch S3: the bulb and the plug on your wrist |
 
 ## What to buy
 
