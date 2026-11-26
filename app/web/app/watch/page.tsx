@@ -1,6 +1,6 @@
 "use client";
 
-import { faClock, faHandPointer, faKey, faLightbulb, faPlug, faSignal } from "@fortawesome/free-solid-svg-icons";
+import { faClock, faHandPointer, faKey, faSignal } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { CardTop, moment, Reading } from "@/components/HomeParts";
@@ -172,34 +172,6 @@ function WatchActivity({ actions }: { actions: TimelineEntry[] }) {
 	);
 }
 
-/** What the watch is allowed to reach, in the shape of the overview's automations. */
-function Reach({ state }: { state: HomeState }) {
-	const bulb = state.bulb.value;
-	const plug = state.plug.value;
-	return (
-		<section className="flex flex-col gap-3">
-			<h2 className="text-lg font-medium text-gray-12">What it can reach</h2>
-			<Card className="flex gap-4 items-center">
-				<div className="flex items-center -space-x-2 shrink-0">
-					{[faClock, faLightbulb, faPlug].map((icon, index) => (
-						<span key={index} className="flex justify-center items-center rounded-full ring-2 size-10 bg-gray-3 ring-gray-1 text-gray-11">
-							<FontAwesomeIcon icon={icon} className="size-[15px]" />
-						</span>
-					))}
-				</div>
-				<div className="flex flex-col flex-1 min-w-0">
-					<p className="text-[15px] font-medium text-gray-12">
-						{bulb?.name ?? "The light"} and {plug?.name ?? "the plug"}, nothing else
-					</p>
-					<p className="text-sm text-gray-10">
-						On and off, and the light's brightness. Every call carries the watch's token; one without it is turned away.
-					</p>
-				</div>
-			</Card>
-		</section>
-	);
-}
-
 function PairSteps() {
 	const steps = [
 		<>
@@ -236,28 +208,21 @@ export default function Watch() {
 
 	return (
 		<>
-			<PageTitle title="Watch">
-				{watch?.enabled && (
-					<p className="flex gap-2 items-center text-sm text-gray-10">
-						<span className={clsx("rounded-full size-2", live ? "bg-green-500" : "bg-gray-7")} />
-						{live ? "On your wrist" : "Not connected"}
-					</p>
-				)}
-			</PageTitle>
+			<PageTitle title="Watch" />
 			{agentError && <p className="text-[15px] text-gray-11">{agentError}</p>}
 			{state && watch && !watch.enabled && <PairSteps />}
 			{state && watch?.enabled && (
 				<>
 					<WatchReadings watch={watch} actions={actions} />
 					<div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-						<Card className="flex overflow-hidden flex-col gap-4 justify-between">
+						<Card className="flex overflow-hidden flex-col gap-4">
 							<CardTop icon={faClock} label="On the watch now" />
-							<WatchMirror state={state} live={live} />
-							<p className="text-[13px] text-center text-gray-10">The watch's screen as it reads roomnet, refreshed every 3 seconds.</p>
+							<div className="flex flex-1 justify-center items-center">
+								<WatchMirror state={state} live={live} />
+							</div>
 						</Card>
 						<WatchActivity actions={actions} />
 					</div>
-					<Reach state={state} />
 				</>
 			)}
 		</>
