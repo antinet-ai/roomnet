@@ -79,6 +79,8 @@ export type HomeState = {
 	bulb: SourceState<BulbValue>;
 	climate_record: SourceState<ClimateRecord[]>;
 	door_lights_off: { enabled: boolean; last_run: string | null; error: string | null };
+	/** The watch's API: on when WATCH_TOKEN is set, and the last request that carried it. */
+	watch: { enabled: boolean; port: number | null; last_seen: string | null; address: string | null };
 	series: Record<string, Series>;
 	timeline: TimelineEntry[];
 	pending: number;

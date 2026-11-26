@@ -8,6 +8,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
+# The watch's token: long enough that guessing it over the network is out
+# of reach.
+SHORTEST_TOKEN = 32
+
 
 def _required(name: str, source: dict[str, str] | None = None) -> str:
     value = (os.environ if source is None else source).get(name, "")
@@ -55,6 +59,9 @@ class Settings:
     tapo_username: str
     tapo_password: str
     listen_port: int
+    # The watch's API (watch.py): off while WATCH_TOKEN is unset.
+    watch_token: str | None = None
+    watch_port: int = 8788
 
     @property
     def camera_url(self) -> str:
@@ -92,4 +99,16 @@ def load() -> Settings:
         tapo_username=_required("TAPO_USERNAME", devices),
         tapo_password=_required("TAPO_PASSWORD", devices),
         listen_port=int(os.environ.get("HOME_AGENT_PORT", "8787")),
+        watch_token=_watch_token(devices),
+        watch_port=int(devices.get("WATCH_PORT") or "8788"),
     )
+
+
+def _watch_token(devices: dict[str, str]) -> str | None:
+    token = devices.get("WATCH_TOKEN") or None
+    if token is not None and len(token) < SHORTEST_TOKEN:
+        raise SystemExit(
+            f"rnet-agent: WATCH_TOKEN is shorter than {SHORTEST_TOKEN} characters; "
+            "make one with `openssl rand -hex 32`"
+        )
+    return token

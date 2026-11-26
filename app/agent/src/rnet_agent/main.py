@@ -4,6 +4,7 @@ the plug, the hub and its sensors, the bulb and the local API."""
 from __future__ import annotations
 
 import logging
+import threading
 
 import uvicorn
 from rnet_tapo import ApiClient
@@ -17,6 +18,7 @@ from .hub import Hub
 from .plug import Plug
 from .server import build
 from .state import HomeState
+from .watch import build_watch
 
 
 def main() -> None:
@@ -46,6 +48,20 @@ def main() -> None:
     plug.start()
     hub.start()
     bulb.start()
+    if settings.watch_token:
+        # The watch reaches the agent over WiFi, so this one listens on the
+        # local network; build_watch refuses any request without the token.
+        watch_server = uvicorn.Server(
+            uvicorn.Config(
+                build_watch(state, bulb, plug, settings.watch_token),
+                host="0.0.0.0",
+                port=settings.watch_port,
+                log_level="warning",
+            )
+        )
+        state.watch["port"] = settings.watch_port
+        threading.Thread(target=watch_server.run, name="watch-api", daemon=True).start()
+        logging.getLogger(__name__).info("watch API on port %d", settings.watch_port)
     try:
         # The live streams never end on their own; after a stop signal the
         # server gives them two seconds, then closes them.
