@@ -184,27 +184,26 @@ static void on_swatch(lv_event_t *e)
 
 static void build_screen()
 {
+    // The display's corners are rounded, so the controls sit centred with
+    // room to spare on every side.
     lv_obj_t *screen = lv_scr_act();
     lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
     lv_obj_set_style_text_color(screen, lv_color_white(), 0);
-    lv_obj_set_style_pad_all(screen, 16, 0);
-    lv_obj_set_style_pad_row(screen, 18, 0);
+    lv_obj_set_style_pad_hor(screen, 26, 0);
+    lv_obj_set_style_pad_ver(screen, 22, 0);
+    lv_obj_set_style_pad_row(screen, 22, 0);
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(screen, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *top = lv_obj_create(screen);
-    lv_obj_remove_style_all(top);
-    lv_obj_set_size(top, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(top, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(top, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_t *title = lv_label_create(top);
-    lv_label_set_text(title, "roomnet");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(title, lv_palette_main(LV_PALETTE_GREY), 0);
-    status_label = lv_label_create(top);
-    lv_obj_set_width(status_label, 120);
+    // Shown only when something is wrong, floating over the top edge so it
+    // never moves the controls.
+    status_label = lv_label_create(screen);
+    lv_obj_add_flag(status_label, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_width(status_label, 170);
+    lv_obj_align(status_label, LV_ALIGN_TOP_MID, 0, -14);
     lv_label_set_long_mode(status_label, LV_LABEL_LONG_DOT);
-    lv_obj_set_style_text_align(status_label, LV_TEXT_ALIGN_RIGHT, 0);
+    lv_obj_set_style_text_align(status_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_set_style_text_font(status_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(status_label, lv_palette_main(LV_PALETTE_ORANGE), 0);
 
@@ -225,12 +224,12 @@ static void build_screen()
     lv_obj_remove_style_all(grid);
     lv_obj_set_size(grid, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
-    lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(grid, 14, 0);
+    lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(grid, 16, 0);
     for (int i = 0; i < PRESET_COUNT; i++) {
         lv_obj_t *swatch = lv_btn_create(grid);
         lv_obj_remove_style_all(swatch);
-        lv_obj_set_size(swatch, 58, 58);
+        lv_obj_set_size(swatch, 50, 50);
         lv_obj_set_style_radius(swatch, LV_RADIUS_CIRCLE, 0);
         lv_obj_set_style_bg_opa(swatch, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(swatch, lv_color_hex(PRESETS[i].swatch), 0);

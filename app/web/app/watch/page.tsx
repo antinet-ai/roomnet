@@ -111,22 +111,21 @@ function WatchMirror({ state, live }: { state: HomeState; live: boolean }) {
 			<div className="w-[150px] h-14 rounded-t-[22px] bg-gradient-to-b from-[#3a3a3a]/30 to-[#262626]" />
 			<div className="relative p-[14px] rounded-[46px] bg-[#1b1b1b] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.08)]">
 				<span className="absolute top-[38%] -right-[7px] w-[9px] h-11 rounded-r-md bg-[#2a2a2a]" />
-				<div className="flex flex-col gap-[18px] p-[16px] sm:p-[18px] rounded-[30px] size-[236px] sm:size-[264px] bg-black text-white font-[Montserrat,system-ui,sans-serif]">
-					<div className="flex gap-3 justify-between items-center">
-						<p className="text-[14px] leading-none text-[#9e9e9e]">roomnet</p>
-						<p className="text-[11px] leading-none truncate text-[#ff9800]">{problem ?? ""}</p>
-					</div>
+				<div className="flex relative flex-col gap-[22px] sm:gap-[24px] justify-center px-[26px] sm:px-[29px] rounded-[30px] size-[236px] sm:size-[264px] bg-black text-white font-[Montserrat,system-ui,sans-serif]">
+					{problem && (
+						<p className="absolute inset-x-0 top-[9px] px-10 text-[11px] leading-none text-center truncate text-[#ff9800]">{problem}</p>
+					)}
 					<div className="flex justify-between items-center">
 						<span className="text-[26px] leading-none">Light</span>
 						<LvglSwitch on={bulb ? bulb.on : null} />
 					</div>
-					<div className="grid grid-cols-3 gap-y-[14px] justify-items-center">
+					<div className="grid grid-cols-3 gap-y-[16px] sm:gap-y-[18px] justify-items-center">
 						{PRESETS.map((preset) => (
 							<span
 								key={preset.name}
 								title={preset.name}
 								className={clsx(
-									"rounded-full size-[52px] sm:size-[60px] transition-opacity",
+									"rounded-full size-[49px] sm:size-[55px] transition-opacity",
 									!on && "opacity-40",
 									selected === preset && "outline outline-[3px] outline-white outline-offset-[3px]",
 								)}
