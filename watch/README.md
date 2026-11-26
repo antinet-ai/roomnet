@@ -1,6 +1,6 @@
 # roomnet watch
 
-roomnet's firmware for the [LilyGO T-Watch S3](https://www.lilygo.cc/products/t-watch-s3): switch the bulb and the plug, and set the bulb's brightness, from your wrist. The watch talks to the roomnet agent over WiFi; it never holds your Tapo account.
+roomnet's firmware for the [LilyGO T-Watch S3](https://www.lilygo.cc/products/t-watch-s3): switch the light on and off and pick its colour from your wrist. The watch talks to the roomnet agent over WiFi; it never holds your Tapo account.
 
 ## Install
 
@@ -19,7 +19,7 @@ brew install platformio
 2. Copy `src/secrets.example.h` to `src/secrets.h` and fill in your WiFi, the Mac's address on the local network and the same token.
 3. Restart roomnet (`app/run.sh`). The agent listens for the watch on port 8788 (`WATCH_PORT`).
 
-The watch's API only switches the bulb and the plug and sets the bulb's brightness. Every request needs the token, and each action shows on roomnet's timeline as "from the watch". The token goes over your WiFi unencrypted, so use this on a network you trust.
+The watch's API only switches the light and sets its colour: two whites and four colours, the same six as the light card on the overview. Every request needs the token, and each action shows on roomnet's timeline as "from the watch". The token goes over your WiFi unencrypted, so use this on a network you trust.
 
 ## Flash
 

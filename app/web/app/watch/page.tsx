@@ -5,7 +5,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import clsx from "clsx";
 import { CardTop, moment, Reading } from "@/components/HomeParts";
 import { PageTitle } from "@/components/PageTitle";
-import { type HomeState, type TimelineEntry, useHome } from "@/components/useHome";
+import { type BulbValue, type HomeState, type TimelineEntry, useHome } from "@/components/useHome";
 import { Card } from "@/ui/Card";
 
 // The watch asks roomnet every 3 seconds (watch/src/main.cpp); three
@@ -13,7 +13,7 @@ import { Card } from "@/ui/Card";
 const SEEN_RECENTLY_MS = 10_000;
 const FROM_WATCH = " from the watch";
 
-// LVGL's default theme on the watch draws switches and sliders in this blue.
+// LVGL's default theme on the watch draws its switch in this blue.
 const LVGL_BLUE = "#2196F3";
 
 function isToday(iso: string): boolean {
@@ -69,13 +69,31 @@ function WatchReadings({ watch, actions }: { watch: HomeState["watch"]; actions:
 	);
 }
 
+// The six the watch offers (watch/src/main.cpp PRESETS), with the colour
+// each swatch has on the watch's screen.
+const PRESETS: { name: string; swatch: string; matches: (bulb: BulbValue) => boolean }[] = [
+	{ name: "Warm white", swatch: "#FDB772", matches: (bulb) => bulb.kelvin === 2700 },
+	{ name: "Daylight", swatch: "#E0EAFF", matches: (bulb) => bulb.kelvin === 6500 },
+	...[
+		{ name: "Red", swatch: "#FF2929", hue: 0, saturation: 100 },
+		{ name: "Amber", swatch: "#FF9429", hue: 30, saturation: 100 },
+		{ name: "Green", swatch: "#3EEA3E", hue: 120, saturation: 80 },
+		{ name: "Blue", swatch: "#29B8FF", hue: 200, saturation: 100 },
+	].map(({ name, swatch, hue, saturation }) => ({
+		name,
+		swatch,
+		matches: (bulb: BulbValue) =>
+			bulb.kelvin === null && bulb.hue !== null && bulb.saturation !== null && Math.abs(bulb.hue - hue) <= 4 && Math.abs(bulb.saturation - saturation) <= 8,
+	})),
+];
+
 function LvglSwitch({ on }: { on: boolean | null }) {
 	return (
 		<span
-			className={clsx("flex items-center p-[3px] rounded-full w-[58px] h-[30px] transition-colors", on === null && "opacity-40")}
+			className={clsx("flex items-center p-[3px] rounded-full w-[72px] h-[38px] transition-colors", on === null && "opacity-40")}
 			style={{ background: on ? LVGL_BLUE : "#3a3a3a" }}
 		>
-			<span className={clsx("block bg-white rounded-full size-6 transition-transform", on && "translate-x-[28px]")} />
+			<span className={clsx("block bg-white rounded-full size-8 transition-transform", on && "translate-x-[34px]")} />
 		</span>
 	);
 }
@@ -83,8 +101,9 @@ function LvglSwitch({ on }: { on: boolean | null }) {
 /** The watch drawn as it sits on the wrist, its screen showing what the firmware shows now. */
 function WatchMirror({ state, live }: { state: HomeState; live: boolean }) {
 	const bulb = state.bulb.value;
-	const plug = state.plug.value;
-	const problem = state.bulb.error ?? state.plug.error;
+	const on = Boolean(bulb?.on);
+	const selected = bulb && on ? PRESETS.find((preset) => preset.matches(bulb)) : undefined;
+	const problem = live ? state.bulb.error : "Joining WiFi...";
 
 	return (
 		<div className="flex relative flex-col items-center py-2">
@@ -92,25 +111,29 @@ function WatchMirror({ state, live }: { state: HomeState; live: boolean }) {
 			<div className="w-[150px] h-14 rounded-t-[22px] bg-gradient-to-b from-[#3a3a3a]/30 to-[#262626]" />
 			<div className="relative p-[14px] rounded-[46px] bg-[#1b1b1b] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.08)]">
 				<span className="absolute top-[38%] -right-[7px] w-[9px] h-11 rounded-r-md bg-[#2a2a2a]" />
-				<div className="flex flex-col gap-[14px] p-[18px] rounded-[30px] size-[236px] sm:size-[264px] bg-black text-white font-[Montserrat,system-ui,sans-serif]">
-					<p className="text-[14px] leading-none text-[#9e9e9e]">roomnet</p>
+				<div className="flex flex-col gap-[18px] p-[16px] sm:p-[18px] rounded-[30px] size-[236px] sm:size-[264px] bg-black text-white font-[Montserrat,system-ui,sans-serif]">
+					<div className="flex gap-3 justify-between items-center">
+						<p className="text-[14px] leading-none text-[#9e9e9e]">roomnet</p>
+						<p className="text-[11px] leading-none truncate text-[#ff9800]">{problem ?? ""}</p>
+					</div>
 					<div className="flex justify-between items-center">
-						<span className="text-[20px] leading-none">Bulb</span>
+						<span className="text-[26px] leading-none">Light</span>
 						<LvglSwitch on={bulb ? bulb.on : null} />
 					</div>
-					<div className="relative h-[10px] rounded-full bg-[#2c3e50]/60">
-						<div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${bulb?.brightness ?? 0}%`, background: LVGL_BLUE }} />
-						<div
-							className="absolute top-1/2 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 size-[18px]"
-							style={{ left: `${bulb?.brightness ?? 0}%`, boxShadow: `0 0 0 3px ${LVGL_BLUE}` }}
-						/>
+					<div className="grid grid-cols-3 gap-y-[14px] justify-items-center">
+						{PRESETS.map((preset) => (
+							<span
+								key={preset.name}
+								title={preset.name}
+								className={clsx(
+									"rounded-full size-[52px] sm:size-[60px] transition-opacity",
+									!on && "opacity-40",
+									selected === preset && "outline outline-[3px] outline-white outline-offset-[3px]",
+								)}
+								style={{ background: preset.swatch }}
+							/>
+						))}
 					</div>
-					<div className="flex gap-2 justify-between items-center">
-						<span className="text-[20px] leading-none">Plug</span>
-						<span className="ml-auto text-[13px] tabular-nums text-[#cfcfcf]">{plug ? `${plug.watts.toFixed(1)} W` : ""}</span>
-						<LvglSwitch on={plug ? plug.on : null} />
-					</div>
-					<p className="text-[11px] leading-snug text-[#ff9800] line-clamp-2">{live ? (problem ?? "") : "Joining WiFi..."}</p>
 				</div>
 			</div>
 			<div className="w-[150px] h-14 rounded-b-[22px] bg-gradient-to-t from-[#3a3a3a]/30 to-[#262626]" />
@@ -187,7 +210,7 @@ function PairSteps() {
 	return (
 		<Card className="flex flex-col gap-5">
 			<CardTop icon={faClock} label="T-Watch S3" />
-			<Reading value="Not paired" detail="Pair it once and it switches the light and the plug from your wrist" />
+			<Reading value="Not paired" detail="Pair it once and it switches the light and sets its colour from your wrist" />
 			<ol className="flex flex-col">
 				{steps.map((step, index) => (
 					<li key={index} className="flex gap-3 items-baseline py-3 text-sm border-t border-gray-3 text-gray-11">

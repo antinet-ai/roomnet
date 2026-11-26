@@ -53,7 +53,7 @@ def main() -> None:
         # local network; build_watch refuses any request without the token.
         watch_server = uvicorn.Server(
             uvicorn.Config(
-                build_watch(state, bulb, plug, settings.watch_token),
+                build_watch(state, bulb, settings.watch_token),
                 host="0.0.0.0",
                 port=settings.watch_port,
                 log_level="warning",

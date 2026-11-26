@@ -1,4 +1,4 @@
-// roomnet on the wrist: switch the bulb and the plug through the agent's
+// roomnet on the wrist: the light's switch and colour, through the agent's
 // watch API (app/agent/src/rnet_agent/watch.py).
 
 #include <LilyGoLib.h>
@@ -16,16 +16,34 @@
 static const uint32_t REFRESH_MS = 3000;
 static const uint16_t HTTP_TIMEOUT_MS = 2500;
 
-static lv_obj_t *status_label;
-static lv_obj_t *bulb_switch;
-static lv_obj_t *bulb_slider;
-static lv_obj_t *plug_switch;
-static lv_obj_t *plug_watts;
+// The overview's light card offers the same six (app/web/components/DeviceCards.tsx):
+// two whites by temperature, four colours by hue and saturation.
+struct Preset {
+    const char *name;
+    uint16_t kelvin;  // 0 for a colour
+    uint16_t hue;
+    uint8_t saturation;
+    uint32_t swatch;  // what the swatch looks like on screen
+};
+static const Preset PRESETS[] = {
+    {"Warm white", 2700, 0, 0, 0xFDB772},
+    {"Daylight", 6500, 0, 0, 0xE0EAFF},
+    {"Red", 0, 0, 100, 0xFF2929},
+    {"Amber", 0, 30, 100, 0xFF9429},
+    {"Green", 0, 120, 80, 0x3EEA3E},
+    {"Blue", 0, 200, 100, 0x29B8FF},
+};
+static const int PRESET_COUNT = sizeof(PRESETS) / sizeof(PRESETS[0]);
 
-// A person's change waits here until loop() sends it, so LVGL's event
+static lv_obj_t *status_label;
+static lv_obj_t *light_switch;
+static lv_obj_t *swatches[PRESET_COUNT];
+
+// A person's tap waits here until loop() sends it, so LVGL's event
 // callbacks never block on the network.
-enum Pending { NONE, BULB_SWITCH, BULB_BRIGHTNESS, PLUG_SWITCH };
-static Pending pending = NONE;
+static const int SEND_SWITCH = -1;
+static const int SEND_NOTHING = -2;
+static int pending = SEND_NOTHING;  // a preset index, or one of the two above
 static uint32_t last_refresh = 0;
 
 static String url(const char *path)
@@ -63,18 +81,49 @@ static bool request(const char *method, const char *path, const String &body, St
     return code >= 200 && code < 300;
 }
 
-static void set_switch(lv_obj_t *sw, JsonVariant on)
+// Which preset the light shows now, or -1; the same tolerance as the overview.
+static int current_preset(JsonObject bulb)
 {
-    if (on.isNull()) {
-        lv_obj_add_state(sw, LV_STATE_DISABLED);
-        return;
+    for (int i = 0; i < PRESET_COUNT; i++) {
+        const Preset &p = PRESETS[i];
+        if (p.kelvin) {
+            if (bulb["kelvin"].as<int>() == p.kelvin) return i;
+        } else if (bulb["kelvin"].isNull() && !bulb["hue"].isNull()) {
+            if (abs(bulb["hue"].as<int>() - p.hue) <= 4 && abs(bulb["saturation"].as<int>() - p.saturation) <= 8) return i;
+        }
     }
-    lv_obj_clear_state(sw, LV_STATE_DISABLED);
-    if (on.as<bool>()) {
-        lv_obj_add_state(sw, LV_STATE_CHECKED);
+    return -1;
+}
+
+static void show(JsonObject bulb)
+{
+    bool known = !bulb["on"].isNull();
+    bool on = known && bulb["on"].as<bool>();
+    if (known) {
+        lv_obj_clear_state(light_switch, LV_STATE_DISABLED);
     } else {
-        lv_obj_clear_state(sw, LV_STATE_CHECKED);
+        lv_obj_add_state(light_switch, LV_STATE_DISABLED);
     }
+    if (on) {
+        lv_obj_add_state(light_switch, LV_STATE_CHECKED);
+    } else {
+        lv_obj_clear_state(light_switch, LV_STATE_CHECKED);
+    }
+    int selected = on ? current_preset(bulb) : -1;
+    for (int i = 0; i < PRESET_COUNT; i++) {
+        // A colour is set on a light that is on, as on the overview.
+        if (on) {
+            lv_obj_clear_state(swatches[i], LV_STATE_DISABLED);
+        } else {
+            lv_obj_add_state(swatches[i], LV_STATE_DISABLED);
+        }
+        if (i == selected) {
+            lv_obj_add_state(swatches[i], LV_STATE_CHECKED);
+        } else {
+            lv_obj_clear_state(swatches[i], LV_STATE_CHECKED);
+        }
+    }
+    status(bulb["problem"].is<const char *>() ? bulb["problem"].as<const char *>() : "");
 }
 
 static void refresh()
@@ -90,42 +139,28 @@ static void refresh()
         status("Unreadable answer");
         return;
     }
-    JsonObject bulb = doc["bulb"], plug = doc["plug"];
-    set_switch(bulb_switch, bulb["on"]);
-    if (!bulb["brightness"].isNull() && !lv_slider_is_dragged(bulb_slider)) {
-        lv_slider_set_value(bulb_slider, bulb["brightness"].as<int>(), LV_ANIM_OFF);
-    }
-    set_switch(plug_switch, plug["on"]);
-    if (plug["watts"].isNull()) {
-        lv_label_set_text(plug_watts, "");
-    } else {
-        lv_label_set_text_fmt(plug_watts, "%.1f W", plug["watts"].as<float>());
-    }
-    const char *problem = !bulb["problem"].isNull() ? bulb["problem"] : plug["problem"];
-    status(problem ? problem : "");
+    show(doc["bulb"]);
 }
 
 static void send_pending()
 {
     JsonDocument doc;
     const char *path;
-    switch (pending) {
-    case BULB_SWITCH:
+    if (pending == SEND_SWITCH) {
         path = "/watch/bulb";
-        doc["on"] = lv_obj_has_state(bulb_switch, LV_STATE_CHECKED);
-        break;
-    case BULB_BRIGHTNESS:
-        path = "/watch/bulb/brightness";
-        doc["brightness"] = lv_slider_get_value(bulb_slider);
-        break;
-    case PLUG_SWITCH:
-        path = "/watch/plug";
-        doc["on"] = lv_obj_has_state(plug_switch, LV_STATE_CHECKED);
-        break;
-    default:
-        return;
+        doc["on"] = lv_obj_has_state(light_switch, LV_STATE_CHECKED);
+    } else {
+        const Preset &p = PRESETS[pending];
+        if (p.kelvin) {
+            path = "/watch/bulb/white";
+            doc["kelvin"] = p.kelvin;
+        } else {
+            path = "/watch/bulb/colour";
+            doc["hue"] = p.hue;
+            doc["saturation"] = p.saturation;
+        }
     }
-    pending = NONE;
+    pending = SEND_NOTHING;
     String body, answer;
     serializeJson(doc, body);
     status("...");
@@ -133,35 +168,18 @@ static void send_pending()
     if (!request("POST", path, body, answer)) {
         status(answer.c_str());
     }
-    // Show what the device did, not what the switch was moved to.
+    // Show what the light did, not what was tapped.
     refresh();
 }
 
-static void on_change(lv_event_t *e)
+static void on_switch(lv_event_t *e)
 {
-    pending = (Pending)(intptr_t)lv_event_get_user_data(e);
+    pending = SEND_SWITCH;
 }
 
-static lv_obj_t *row(lv_obj_t *parent, const char *name)
+static void on_swatch(lv_event_t *e)
 {
-    lv_obj_t *r = lv_obj_create(parent);
-    lv_obj_remove_style_all(r);
-    lv_obj_set_size(r, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(r, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(r, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_t *label = lv_label_create(r);
-    lv_label_set_text(label, name);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_22, 0);
-    return r;
-}
-
-static lv_obj_t *add_switch(lv_obj_t *parent, Pending what)
-{
-    lv_obj_t *sw = lv_switch_create(parent);
-    lv_obj_set_size(sw, 70, 36);
-    lv_obj_add_state(sw, LV_STATE_DISABLED);
-    lv_obj_add_event_cb(sw, on_change, LV_EVENT_VALUE_CHANGED, (void *)(intptr_t)what);
-    return sw;
+    pending = (int)(intptr_t)lv_event_get_user_data(e);
 }
 
 static void build_screen()
@@ -169,34 +187,64 @@ static void build_screen()
     lv_obj_t *screen = lv_scr_act();
     lv_obj_set_style_bg_color(screen, lv_color_black(), 0);
     lv_obj_set_style_text_color(screen, lv_color_white(), 0);
-    lv_obj_set_style_pad_all(screen, 14, 0);
-    lv_obj_set_style_pad_row(screen, 14, 0);
+    lv_obj_set_style_pad_all(screen, 16, 0);
+    lv_obj_set_style_pad_row(screen, 18, 0);
     lv_obj_set_flex_flow(screen, LV_FLEX_FLOW_COLUMN);
+    lv_obj_clear_flag(screen, LV_OBJ_FLAG_SCROLLABLE);
 
-    lv_obj_t *title = lv_label_create(screen);
+    lv_obj_t *top = lv_obj_create(screen);
+    lv_obj_remove_style_all(top);
+    lv_obj_set_size(top, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(top, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(top, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_t *title = lv_label_create(top);
     lv_label_set_text(title, "roomnet");
-    lv_obj_set_style_text_font(title, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(title, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(title, lv_palette_main(LV_PALETTE_GREY), 0);
-
-    bulb_switch = add_switch(row(screen, "Bulb"), BULB_SWITCH);
-
-    bulb_slider = lv_slider_create(screen);
-    lv_obj_set_width(bulb_slider, LV_PCT(95));
-    lv_obj_set_style_pad_all(bulb_slider, 4, LV_PART_KNOB);
-    lv_slider_set_range(bulb_slider, 1, 100);
-    // Sent once on release, not on every step of the drag.
-    lv_obj_add_event_cb(bulb_slider, on_change, LV_EVENT_RELEASED, (void *)(intptr_t)BULB_BRIGHTNESS);
-
-    lv_obj_t *plug_row = row(screen, "Plug");
-    plug_watts = lv_label_create(plug_row);
-    lv_label_set_text(plug_watts, "");
-    plug_switch = add_switch(plug_row, PLUG_SWITCH);
-
-    status_label = lv_label_create(screen);
-    lv_obj_set_width(status_label, LV_PCT(100));
-    lv_label_set_long_mode(status_label, LV_LABEL_LONG_WRAP);
+    status_label = lv_label_create(top);
+    lv_obj_set_width(status_label, 120);
+    lv_label_set_long_mode(status_label, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_align(status_label, LV_TEXT_ALIGN_RIGHT, 0);
     lv_obj_set_style_text_font(status_label, &lv_font_montserrat_12, 0);
     lv_obj_set_style_text_color(status_label, lv_palette_main(LV_PALETTE_ORANGE), 0);
+
+    lv_obj_t *row = lv_obj_create(screen);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_t *label = lv_label_create(row);
+    lv_label_set_text(label, "Light");
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_26, 0);
+    light_switch = lv_switch_create(row);
+    lv_obj_set_size(light_switch, 74, 38);
+    lv_obj_add_state(light_switch, LV_STATE_DISABLED);
+    lv_obj_add_event_cb(light_switch, on_switch, LV_EVENT_VALUE_CHANGED, NULL);
+
+    lv_obj_t *grid = lv_obj_create(screen);
+    lv_obj_remove_style_all(grid);
+    lv_obj_set_size(grid, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_flex_align(grid, LV_FLEX_ALIGN_SPACE_BETWEEN, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(grid, 14, 0);
+    for (int i = 0; i < PRESET_COUNT; i++) {
+        lv_obj_t *swatch = lv_btn_create(grid);
+        lv_obj_remove_style_all(swatch);
+        lv_obj_set_size(swatch, 58, 58);
+        lv_obj_set_style_radius(swatch, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_opa(swatch, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(swatch, lv_color_hex(PRESETS[i].swatch), 0);
+        // The colour the light shows now gets a white ring, as on the overview.
+        lv_obj_set_style_outline_color(swatch, lv_color_white(), LV_STATE_CHECKED);
+        lv_obj_set_style_outline_width(swatch, 3, LV_STATE_CHECKED);
+        lv_obj_set_style_outline_pad(swatch, 3, LV_STATE_CHECKED);
+        lv_obj_set_style_opa(swatch, LV_OPA_40, LV_STATE_DISABLED);
+        lv_obj_set_style_transform_width(swatch, -4, LV_STATE_PRESSED);
+        lv_obj_set_style_transform_height(swatch, -4, LV_STATE_PRESSED);
+        lv_obj_add_state(swatch, LV_STATE_DISABLED);
+        lv_obj_add_event_cb(swatch, on_swatch, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        swatches[i] = swatch;
+    }
 }
 
 void setup()
@@ -220,7 +268,7 @@ void loop()
             last_note = millis();
             status("Joining WiFi...");
         }
-    } else if (pending != NONE) {
+    } else if (pending != SEND_NOTHING) {
         send_pending();
     } else if (millis() - last_refresh > REFRESH_MS) {
         refresh();
