@@ -1,106 +1,263 @@
 "use client";
 
-import { faClock, faLightbulb, faPlug, faSliders } from "@fortawesome/free-solid-svg-icons";
+import { faClock, faHandPointer, faKey, faLightbulb, faPlug, faSignal } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { moment } from "@/components/HomeParts";
+import clsx from "clsx";
+import { CardTop, moment, Reading } from "@/components/HomeParts";
 import { PageTitle } from "@/components/PageTitle";
-import { useHome } from "@/components/useHome";
+import { type HomeState, type TimelineEntry, useHome } from "@/components/useHome";
 import { Card } from "@/ui/Card";
 
-// The watch asks roomnet every 3 seconds; three missed answers read as gone.
+// The watch asks roomnet every 3 seconds (watch/src/main.cpp); three
+// missed calls in a row read as gone.
 const SEEN_RECENTLY_MS = 10_000;
+const FROM_WATCH = " from the watch";
 
-const WATCH_SUFFIX = " from the watch";
+// LVGL's default theme on the watch draws switches and sliders in this blue.
+const LVGL_BLUE = "#2196F3";
 
-const controls = [
-	{ icon: faLightbulb, text: "Switch the bulb on and off" },
-	{ icon: faSliders, text: "Set the bulb's brightness" },
-	{ icon: faPlug, text: "Switch the plug on and off, and see its power" },
-];
+function isToday(iso: string): boolean {
+	return new Date(iso).toDateString() === new Date().toDateString();
+}
 
-function Status({ lastSeen }: { lastSeen: string | null }) {
-	if (lastSeen && Date.now() - new Date(lastSeen).getTime() < SEEN_RECENTLY_MS) {
-		return <span className="text-[13px] text-gray-10">Connected</span>;
-	}
+function clock(iso: string): string {
+	return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function connected(lastSeen: string | null): boolean {
+	return Boolean(lastSeen) && Date.now() - new Date(lastSeen as string).getTime() < SEEN_RECENTLY_MS;
+}
+
+/** The three things to know about the watch, read in a second, the way the overview opens. */
+function WatchReadings({ watch, actions }: { watch: HomeState["watch"]; actions: TimelineEntry[] }) {
+	const live = connected(watch.last_seen);
+	const cells: { icon: typeof faSignal; label: string; value: string; unit?: string; detail: string; dot?: boolean }[] = [
+		{
+			icon: faSignal,
+			label: "Connection",
+			value: live ? "Connected" : watch.last_seen ? "Away" : "Waiting",
+			detail: live ? "Checks in every 3 seconds" : watch.last_seen ? `Last seen ${moment(watch.last_seen)}` : "It hasn't called roomnet yet",
+			dot: !live,
+		},
+		{
+			icon: faHandPointer,
+			label: "Last from your wrist",
+			value: actions[0] ? actions[0].text.slice(0, -FROM_WATCH.length).replace(/^Bulb /, "Light ") : "–",
+			detail: actions[0] ? moment(actions[0].time) : "Nothing done from the watch yet",
+		},
+		{
+			icon: faKey,
+			label: "Pairing",
+			value: "Paired",
+			detail: watch.address ? `${watch.address} · port ${watch.port}` : `Port ${watch.port}`,
+		},
+	];
+
 	return (
-		<span className="flex gap-1.5 items-center text-[13px] text-gray-11">
-			<span className="rounded-full size-2 bg-red-500" />
-			{lastSeen ? `Seen ${moment(lastSeen)}` : "Not seen yet"}
+		<Card className="grid overflow-hidden grid-cols-1 p-0 sm:grid-cols-3">
+			{cells.map((cell) => (
+				<div key={cell.label} className="flex flex-col gap-3 p-4 min-w-0 border-t border-gray-3 first:border-t-0 sm:border-t-0 sm:border-l sm:first:border-l-0 sm:p-5">
+					<span className="flex gap-2 items-center text-sm text-gray-11">
+						<FontAwesomeIcon icon={cell.icon} className="size-[13px] shrink-0 text-gray-10" />
+						<span className="truncate">{cell.label}</span>
+						{cell.dot && <span className="ml-auto rounded-full size-2 bg-red-500" />}
+					</span>
+					<Reading value={cell.value} unit={cell.unit} detail={cell.detail} />
+				</div>
+			))}
+		</Card>
+	);
+}
+
+function LvglSwitch({ on }: { on: boolean | null }) {
+	return (
+		<span
+			className={clsx("flex items-center p-[3px] rounded-full w-[58px] h-[30px] transition-colors", on === null && "opacity-40")}
+			style={{ background: on ? LVGL_BLUE : "#3a3a3a" }}
+		>
+			<span className={clsx("block bg-white rounded-full size-6 transition-transform", on && "translate-x-[28px]")} />
 		</span>
 	);
 }
 
-function Setup() {
+/** The watch drawn as it sits on the wrist, its screen showing what the firmware shows now. */
+function WatchMirror({ state, live }: { state: HomeState; live: boolean }) {
+	const bulb = state.bulb.value;
+	const plug = state.plug.value;
+	const problem = state.bulb.error ?? state.plug.error;
+
 	return (
-		<Card className="flex flex-col gap-3">
-			<p className="text-sm font-medium text-gray-12">Pair a watch</p>
-			<ol className="flex flex-col gap-2 pl-5 text-sm list-decimal text-gray-11">
-				<li>
-					Make a token with <code className="text-gray-12">openssl rand -hex 32</code> and put it in{" "}
-					<code className="text-gray-12">app/site/devices.env</code> as <code className="text-gray-12">WATCH_TOKEN</code>.
-				</li>
-				<li>
-					Put the same token, your WiFi and this Mac's address in <code className="text-gray-12">watch/src/secrets.h</code>, then flash the
-					watch.
-				</li>
-				<li>Restart roomnet.</li>
+		<div className="flex relative flex-col items-center py-2">
+			{/* Strap, case and crown. */}
+			<div className="w-[150px] h-14 rounded-t-[22px] bg-gradient-to-b from-[#3a3a3a]/30 to-[#262626]" />
+			<div className="relative p-[14px] rounded-[46px] bg-[#1b1b1b] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.08)]">
+				<span className="absolute top-[38%] -right-[7px] w-[9px] h-11 rounded-r-md bg-[#2a2a2a]" />
+				<div className="flex flex-col gap-[14px] p-[18px] rounded-[30px] size-[236px] sm:size-[264px] bg-black text-white font-[Montserrat,system-ui,sans-serif]">
+					<p className="text-[14px] leading-none text-[#9e9e9e]">roomnet</p>
+					<div className="flex justify-between items-center">
+						<span className="text-[20px] leading-none">Bulb</span>
+						<LvglSwitch on={bulb ? bulb.on : null} />
+					</div>
+					<div className="relative h-[10px] rounded-full bg-[#2c3e50]/60">
+						<div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${bulb?.brightness ?? 0}%`, background: LVGL_BLUE }} />
+						<div
+							className="absolute top-1/2 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 size-[18px]"
+							style={{ left: `${bulb?.brightness ?? 0}%`, boxShadow: `0 0 0 3px ${LVGL_BLUE}` }}
+						/>
+					</div>
+					<div className="flex gap-2 justify-between items-center">
+						<span className="text-[20px] leading-none">Plug</span>
+						<span className="ml-auto text-[13px] tabular-nums text-[#cfcfcf]">{plug ? `${plug.watts.toFixed(1)} W` : ""}</span>
+						<LvglSwitch on={plug ? plug.on : null} />
+					</div>
+					<p className="text-[11px] leading-snug text-[#ff9800] line-clamp-2">{live ? (problem ?? "") : "Joining WiFi..."}</p>
+				</div>
+			</div>
+			<div className="w-[150px] h-14 rounded-b-[22px] bg-gradient-to-t from-[#3a3a3a]/30 to-[#262626]" />
+		</div>
+	);
+}
+
+/** What was done from the watch today, in the shape of the overview's Today card. */
+function WatchActivity({ actions }: { actions: TimelineEntry[] }) {
+	const today = actions.filter((entry) => isToday(entry.time));
+	const perHour = Array.from({ length: 24 }, () => 0);
+	for (const entry of today) perHour[new Date(entry.time).getHours()] += 1;
+	const busiest = Math.max(1, ...perHour);
+	const currentHour = new Date().getHours();
+
+	return (
+		<Card className="flex flex-col flex-1 gap-6">
+			<div className="flex flex-col gap-3">
+				<CardTop icon={faHandPointer} label="From the watch" />
+				<Reading
+					value={String(today.length)}
+					unit={today.length === 1 ? "action today" : "actions today"}
+					detail={today[0] ? `Last one ${moment(today[0].time)}` : "Flip a switch on the watch and it shows here"}
+				/>
+			</div>
+			<div className="flex flex-col flex-1 gap-2 justify-end">
+				<div className="flex gap-[3px] items-end h-28">
+					{perHour.map((count, hour) => (
+						<div
+							key={hour}
+							title={`${String(hour).padStart(2, "0")}:00 · ${count} ${count === 1 ? "action" : "actions"}`}
+							className={clsx(
+								"flex-1 rounded-sm",
+								hour > currentHour ? "bg-gray-3" : hour === currentHour ? "bg-gray-12" : count > 0 ? "bg-gray-7" : "bg-gray-4",
+							)}
+							style={{ height: count > 0 ? `${Math.max(8, (count / busiest) * 100)}%` : "3px" }}
+						/>
+					))}
+				</div>
+				<div className="flex justify-between text-[11px] tabular-nums text-gray-10">
+					<span>00</span>
+					<span>06</span>
+					<span>12</span>
+					<span>18</span>
+					<span>24</span>
+				</div>
+			</div>
+			{actions.length > 0 && (
+				<ul className="flex flex-col">
+					{actions.slice(0, 6).map((entry) => (
+						<li key={entry.key} className="flex gap-4 justify-between items-baseline py-2.5 border-t border-gray-3">
+							<span className="text-sm truncate text-gray-11">{entry.text.slice(0, -FROM_WATCH.length)}</span>
+							<span className="text-sm tabular-nums shrink-0 text-gray-10">{isToday(entry.time) ? clock(entry.time) : moment(entry.time)}</span>
+						</li>
+					))}
+				</ul>
+			)}
+		</Card>
+	);
+}
+
+/** What the watch is allowed to reach, in the shape of the overview's automations. */
+function Reach({ state }: { state: HomeState }) {
+	const bulb = state.bulb.value;
+	const plug = state.plug.value;
+	return (
+		<section className="flex flex-col gap-3">
+			<h2 className="text-lg font-medium text-gray-12">What it can reach</h2>
+			<Card className="flex gap-4 items-center">
+				<div className="flex items-center -space-x-2 shrink-0">
+					{[faClock, faLightbulb, faPlug].map((icon, index) => (
+						<span key={index} className="flex justify-center items-center rounded-full ring-2 size-10 bg-gray-3 ring-gray-1 text-gray-11">
+							<FontAwesomeIcon icon={icon} className="size-[15px]" />
+						</span>
+					))}
+				</div>
+				<div className="flex flex-col flex-1 min-w-0">
+					<p className="text-[15px] font-medium text-gray-12">
+						{bulb?.name ?? "The light"} and {plug?.name ?? "the plug"}, nothing else
+					</p>
+					<p className="text-sm text-gray-10">
+						On and off, and the light's brightness. Every call carries the watch's token; one without it is turned away.
+					</p>
+				</div>
+			</Card>
+		</section>
+	);
+}
+
+function PairSteps() {
+	const steps = [
+		<>
+			Make a token with <code className="text-gray-12">openssl rand -hex 32</code> and add it to <code className="text-gray-12">app/site/devices.env</code> as{" "}
+			<code className="text-gray-12">WATCH_TOKEN</code>.
+		</>,
+		<>
+			Put the same token, your WiFi and this Mac's address in <code className="text-gray-12">watch/src/secrets.h</code>, then flash the watch with{" "}
+			<code className="text-gray-12">pio run -t upload</code>.
+		</>,
+		<>Restart roomnet. The watch shows up here within a few seconds.</>,
+	];
+	return (
+		<Card className="flex flex-col gap-5">
+			<CardTop icon={faClock} label="T-Watch S3" />
+			<Reading value="Not paired" detail="Pair it once and it switches the light and the plug from your wrist" />
+			<ol className="flex flex-col">
+				{steps.map((step, index) => (
+					<li key={index} className="flex gap-3 items-baseline py-3 text-sm border-t border-gray-3 text-gray-11">
+						<span className="flex justify-center items-center text-xs tabular-nums rounded-full size-5 shrink-0 bg-gray-3 text-gray-12">{index + 1}</span>
+						<span>{step}</span>
+					</li>
+				))}
 			</ol>
 		</Card>
 	);
 }
 
 export default function Watch() {
-	const { state } = useHome();
+	const { state, agentError } = useHome();
 	const watch = state?.watch;
-	const fromWatch = (state?.timeline ?? []).filter((item) => item.text.endsWith(WATCH_SUFFIX));
+	const actions = (state?.timeline ?? []).filter((entry) => entry.text.endsWith(FROM_WATCH));
+	const live = connected(watch?.last_seen ?? null);
 
 	return (
 		<>
 			<PageTitle title="Watch">
-				{watch?.enabled && <p className="text-sm tabular-nums text-gray-10">Port {watch.port}</p>}
+				{watch?.enabled && (
+					<p className="flex gap-2 items-center text-sm text-gray-10">
+						<span className={clsx("rounded-full size-2", live ? "bg-green-500" : "bg-gray-7")} />
+						{live ? "On your wrist" : "Not connected"}
+					</p>
+				)}
 			</PageTitle>
-			{state && !watch?.enabled ? (
-				<Setup />
-			) : (
+			{agentError && <p className="text-[15px] text-gray-11">{agentError}</p>}
+			{state && watch && !watch.enabled && <PairSteps />}
+			{state && watch?.enabled && (
 				<>
-					<Card className="flex gap-3 items-center px-4 py-3.5 sm:px-5">
-						<span className="flex justify-center items-center rounded-lg size-9 shrink-0 bg-gray-3 text-gray-11">
-							<FontAwesomeIcon icon={faClock} className="size-[14px]" />
-						</span>
-						<span className="flex flex-col flex-1 min-w-0">
-							<span className="text-sm font-medium truncate text-gray-12">T-Watch S3</span>
-							<span className="text-[13px] truncate text-gray-10">
-								{watch?.address ? `Paired · ${watch.address}` : "Paired · waiting for its first call"}
-							</span>
-						</span>
-						<Status lastSeen={watch?.last_seen ?? null} />
-					</Card>
-					<Card className="flex flex-col gap-3">
-						<p className="text-sm font-medium text-gray-12">From your wrist</p>
-						<ul className="flex flex-col gap-2.5">
-							{controls.map((control) => (
-								<li key={control.text} className="flex gap-2.5 items-center text-sm text-gray-11">
-									<FontAwesomeIcon icon={control.icon} className="size-[13px] text-gray-10" />
-									{control.text}
-								</li>
-							))}
-						</ul>
-					</Card>
-					<Card className="flex flex-col gap-3">
-						<p className="text-sm font-medium text-gray-12">Recent</p>
-						{fromWatch.length === 0 ? (
-							<p className="text-sm text-gray-10">Nothing done from the watch yet.</p>
-						) : (
-							<ul className="flex flex-col">
-								{fromWatch.slice(0, 10).map((item) => (
-									<li key={item.key} className="flex justify-between py-2 text-sm border-t border-gray-3 first:border-t-0">
-										<span className="text-gray-12">{item.text.slice(0, -WATCH_SUFFIX.length)}</span>
-										<span className="text-gray-10">{moment(item.time)}</span>
-									</li>
-								))}
-							</ul>
-						)}
-					</Card>
+					<WatchReadings watch={watch} actions={actions} />
+					<div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+						<Card className="flex overflow-hidden flex-col gap-4 justify-between">
+							<CardTop icon={faClock} label="On the watch now" />
+							<WatchMirror state={state} live={live} />
+							<p className="text-[13px] text-center text-gray-10">The watch's screen as it reads roomnet, refreshed every 3 seconds.</p>
+						</Card>
+						<WatchActivity actions={actions} />
+					</div>
+					<Reach state={state} />
 				</>
 			)}
 		</>
